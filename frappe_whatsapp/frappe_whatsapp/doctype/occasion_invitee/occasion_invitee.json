@@ -1,54 +1,68 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format:INV-{####}",
- "creation": "2025-08-19 12:56:39.549379",
+ "autoname": "format:OINV-{####}",
+ "creation": "2025-08-19 21:37:17.652042",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "contact_info_section",
-  "full_name",
-  "column_break_ejiw",
+  "invitee",
+  "column_break_zgpq",
   "whatsapp_number",
-  "section_break_nnyx",
-  "ticket_id",
+  "occasion_details_section",
+  "occasion",
   "qr_raw_data",
-  "qr_code"
+  "qr_code",
+  "column_break_yntq",
+  "ticket_id"
  ],
  "fields": [
   {
-   "fieldname": "full_name",
-   "fieldtype": "Data",
+   "fieldname": "invitee",
+   "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Full Name",
+   "label": "Invitee",
+   "options": "Contact",
    "reqd": 1
   },
   {
-   "fieldname": "column_break_ejiw",
+   "fieldname": "column_break_zgpq",
    "fieldtype": "Column Break"
   },
   {
+   "fetch_from": "invitee.phone",
    "fieldname": "whatsapp_number",
-   "fieldtype": "Phone",
-   "in_list_view": 1,
-   "label": "WhatsApp Number",
-   "reqd": 1
-  },
-  {
-   "fieldname": "ticket_id",
    "fieldtype": "Data",
-   "label": "Ticket ID",
-   "unique": 1
-  },
-  {
-   "fieldname": "section_break_nnyx",
-   "fieldtype": "Section Break",
-   "label": "Check-in Details"
+   "label": "Whatsapp Number",
+   "read_only": 1
   },
   {
    "fieldname": "contact_info_section",
    "fieldtype": "Section Break",
    "label": "Contact Info"
+  },
+  {
+   "fieldname": "occasion_details_section",
+   "fieldtype": "Section Break",
+   "label": "Occasion Details"
+  },
+  {
+   "fieldname": "occasion",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Occasion",
+   "options": "Occasion",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_yntq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ticket_id",
+   "fieldtype": "Data",
+   "label": "Ticket ID"
   },
   {
    "fieldname": "qr_raw_data",
@@ -59,16 +73,17 @@
   {
    "fieldname": "qr_code",
    "fieldtype": "Image",
-   "label": "QR Code"
+   "label": "QR Code",
+   "options": "qr_raw_data"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-19 13:20:20.262393",
+ "modified": "2025-08-19 21:56:42.272092",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
- "name": "Invitee",
+ "name": "Occasion Invitee",
  "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
