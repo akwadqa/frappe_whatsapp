@@ -1,0 +1,47 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:occasion_type",
+ "creation": "2025-08-19 12:03:06.793069",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "occasion_type"
+ ],
+ "fields": [
+  {
+   "fieldname": "occasion_type",
+   "fieldtype": "Data",
+   "label": "Occasion Type",
+   "unique": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-08-19 13:05:08.818233",
+ "modified_by": "Administrator",
+ "module": "Frappe Whatsapp",
+ "name": "Occasion Type",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

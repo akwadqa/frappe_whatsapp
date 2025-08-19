@@ -1,0 +1,107 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:OCC-{YYYY}-{###}",
+ "creation": "2025-08-19 11:43:26.577411",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "type",
+  "timeline_section",
+  "from",
+  "column_break_ewkq",
+  "to",
+  "location_section",
+  "location",
+  "column_break_cjwv",
+  "map_link",
+  "section_break_jnzx",
+  "participants"
+ ],
+ "fields": [
+  {
+   "fieldname": "type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Type",
+   "options": "Occasion Type",
+   "reqd": 1
+  },
+  {
+   "fieldname": "timeline_section",
+   "fieldtype": "Section Break",
+   "label": "Timeline"
+  },
+  {
+   "fieldname": "from",
+   "fieldtype": "Datetime",
+   "label": "From"
+  },
+  {
+   "fieldname": "column_break_ewkq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "to",
+   "fieldtype": "Datetime",
+   "label": "To"
+  },
+  {
+   "fieldname": "location_section",
+   "fieldtype": "Section Break",
+   "label": "Location"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Date",
+   "label": "Location"
+  },
+  {
+   "fieldname": "column_break_cjwv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "map_link",
+   "fieldtype": "Data",
+   "label": "Map Link"
+  },
+  {
+   "fieldname": "section_break_jnzx",
+   "fieldtype": "Section Break",
+   "label": "Participants"
+  },
+  {
+   "fieldname": "participants",
+   "fieldtype": "Table",
+   "label": "Participants",
+   "options": "Occasion Participant"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-08-19 12:13:55.888641",
+ "modified_by": "Administrator",
+ "module": "Frappe Whatsapp",
+ "name": "Occasion",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

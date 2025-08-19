@@ -1,0 +1,93 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:INV-{####}",
+ "creation": "2025-08-19 12:56:39.549379",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "contact_info_section",
+  "full_name",
+  "column_break_ejiw",
+  "whatsapp_number",
+  "section_break_nnyx",
+  "ticket_id",
+  "qr_raw_data",
+  "qr_code"
+ ],
+ "fields": [
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Full Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_ejiw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "whatsapp_number",
+   "fieldtype": "Phone",
+   "in_list_view": 1,
+   "label": "WhatsApp Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ticket_id",
+   "fieldtype": "Data",
+   "label": "Ticket ID",
+   "unique": 1
+  },
+  {
+   "fieldname": "section_break_nnyx",
+   "fieldtype": "Section Break",
+   "label": "Check-in Details"
+  },
+  {
+   "fieldname": "contact_info_section",
+   "fieldtype": "Section Break",
+   "label": "Contact Info"
+  },
+  {
+   "fieldname": "qr_raw_data",
+   "fieldtype": "Small Text",
+   "hidden": 1,
+   "label": "QR Raw Data"
+  },
+  {
+   "fieldname": "qr_code",
+   "fieldtype": "Image",
+   "label": "QR Code"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-08-19 13:20:20.262393",
+ "modified_by": "Administrator",
+ "module": "Frappe Whatsapp",
+ "name": "Invitee",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
