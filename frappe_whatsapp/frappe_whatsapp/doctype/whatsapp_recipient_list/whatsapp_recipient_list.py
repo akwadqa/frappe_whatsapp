@@ -27,6 +27,8 @@ class WhatsAppRecipientList(Document):
 		fields = [mobile_field]
 		if name_field:
 			fields.append(name_field)
+		if self.doctype_to_import == "Occasion Invitee":
+			fields.append("name")
 		if data_fields:
 			meta = frappe.get_meta(doctype)
 			# print(meta.fields)
@@ -73,6 +75,9 @@ class WhatsAppRecipientList(Document):
 			
 			if name_field and record.get(name_field):
 				recipient["recipient_name"] = record.get(name_field)
+			
+			if self.doctype_to_import == "Occasion Invitee" and record.get("name"):
+				recipient["occasion_invitee"] = record.get("name")
 				
 			self.append("recipients", recipient)
 		
