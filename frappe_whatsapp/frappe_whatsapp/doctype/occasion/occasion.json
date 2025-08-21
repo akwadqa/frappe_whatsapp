@@ -20,7 +20,9 @@
   "templates_section",
   "invite_template",
   "column_break_vggy",
-  "confirmed_template"
+  "confirmed_template",
+  "column_break_dtgs",
+  "declined_template"
  ],
  "fields": [
   {
@@ -101,6 +103,16 @@
    "fieldtype": "Link",
    "label": "Confirmed Template",
    "options": "WhatsApp Templates"
+  },
+  {
+   "fieldname": "column_break_dtgs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "declined_template",
+   "fieldtype": "Link",
+   "label": "Declined Template",
+   "options": "WhatsApp Templates"
   }
  ],
  "grid_page_length": 50,
@@ -122,7 +134,7 @@
    "link_fieldname": "occasion"
   }
  ],
- "modified": "2025-08-21 09:05:08.189479",
+ "modified": "2025-08-21 16:16:56.264874",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "Occasion",
