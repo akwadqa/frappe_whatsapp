@@ -16,7 +16,11 @@
   "column_break_cjwv",
   "map_link",
   "section_break_jnzx",
-  "participants"
+  "participants",
+  "templates_section",
+  "invite_template",
+  "column_break_vggy",
+  "confirmed_template"
  ],
  "fields": [
   {
@@ -53,7 +57,7 @@
   },
   {
    "fieldname": "location",
-   "fieldtype": "Date",
+   "fieldtype": "Data",
    "label": "Location"
   },
   {
@@ -75,12 +79,50 @@
    "fieldtype": "Table",
    "label": "Participants",
    "options": "Occasion Participant"
+  },
+  {
+   "fieldname": "templates_section",
+   "fieldtype": "Section Break",
+   "label": "Templates"
+  },
+  {
+   "fieldname": "invite_template",
+   "fieldtype": "Link",
+   "label": "Invite Template",
+   "options": "WhatsApp Templates",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_vggy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "confirmed_template",
+   "fieldtype": "Link",
+   "label": "Confirmed Template",
+   "options": "WhatsApp Templates"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2025-08-19 12:13:55.888641",
+ "links": [
+  {
+   "group": "Connections",
+   "link_doctype": "Occasion Invitee",
+   "link_fieldname": "occasion"
+  },
+  {
+   "group": "Connections",
+   "link_doctype": "WhatsApp Recipient List",
+   "link_fieldname": "occasion"
+  },
+  {
+   "group": "Connections",
+   "link_doctype": "Bulk WhatsApp Message",
+   "link_fieldname": "occasion"
+  }
+ ],
+ "modified": "2025-08-21 09:05:08.189479",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "Occasion",

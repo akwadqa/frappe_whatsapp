@@ -9,13 +9,16 @@
   "contact_info_section",
   "invitee",
   "column_break_zgpq",
+  "full_name",
   "whatsapp_number",
   "occasion_details_section",
   "occasion",
   "qr_raw_data",
   "qr_code",
   "column_break_yntq",
-  "ticket_id"
+  "ticket_id",
+  "rsvp_section",
+  "rsvp_status"
  ],
  "fields": [
   {
@@ -62,7 +65,9 @@
   {
    "fieldname": "ticket_id",
    "fieldtype": "Data",
-   "label": "Ticket ID"
+   "hidden": 1,
+   "label": "Ticket ID",
+   "read_only": 1
   },
   {
    "fieldname": "qr_raw_data",
@@ -75,12 +80,31 @@
    "fieldtype": "Image",
    "label": "QR Code",
    "options": "qr_raw_data"
+  },
+  {
+   "fetch_from": "invitee.full_name",
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "label": "Full Name"
+  },
+  {
+   "fieldname": "rsvp_section",
+   "fieldtype": "Section Break",
+   "label": "RSVP"
+  },
+  {
+   "fieldname": "rsvp_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "RSVP Status",
+   "options": "Not Sent\nPending\nConfirmed\nDeclined"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-19 21:56:42.272092",
+ "modified": "2025-08-21 09:10:10.760427",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "Occasion Invitee",

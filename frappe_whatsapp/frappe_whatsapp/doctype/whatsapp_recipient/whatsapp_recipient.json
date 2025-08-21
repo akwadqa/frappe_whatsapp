@@ -7,6 +7,7 @@
  "field_order": [
   "mobile_number",
   "recipient_name",
+  "occasion_invitee",
   "recipient_data"
  ],
  "fields": [
@@ -30,17 +31,26 @@
    "fieldtype": "Code",
    "label": "Recipient Data",
    "options": "JSON"
+  },
+  {
+   "fieldname": "occasion_invitee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Occasion Invitee",
+   "options": "Occasion Invitee",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-03-07 13:06:39.875432",
+ "modified": "2025-08-20 11:28:48.143339",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Recipient",
  "owner": "Administrator",
  "permissions": [],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

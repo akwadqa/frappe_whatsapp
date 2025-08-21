@@ -8,6 +8,8 @@
  "field_order": [
   "list_name",
   "description",
+  "column_break_cuzy",
+  "occasion",
   "section_recipients",
   "recipients",
   "import_section",
@@ -106,11 +108,22 @@
    "fieldtype": "Code",
    "label": "Data fields",
    "options": "JSON"
+  },
+  {
+   "fieldname": "column_break_cuzy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "occasion",
+   "fieldtype": "Link",
+   "label": "Occasion",
+   "mandatory_depends_on": "eval: doc.doctype_to_import == \"Occasion Invitee\"",
+   "options": "Occasion"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-03 12:41:13.610865",
+ "modified": "2025-08-20 15:23:44.565087",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Recipient List",
@@ -142,6 +155,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
