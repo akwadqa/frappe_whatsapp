@@ -53,31 +53,38 @@
    "label": "Import Recipients"
   },
   {
-   "default": "0",
+   "default": "1",
    "fieldname": "import_from_doctype",
    "fieldtype": "Check",
-   "label": "Import From DocType"
+   "label": "Import From DocType",
+   "read_only": 1
   },
   {
+   "default": "Occasion Invitee",
    "depends_on": "eval:doc.import_from_doctype==1",
    "fieldname": "doctype_to_import",
    "fieldtype": "Link",
    "label": "DocType to Import",
-   "options": "DocType"
+   "options": "DocType",
+   "read_only": 1
   },
   {
+   "default": "whatsapp_number",
    "depends_on": "eval:doc.import_from_doctype==1",
    "description": "Field name containing the mobile number",
    "fieldname": "mobile_field",
    "fieldtype": "Data",
-   "label": "Mobile Number Field"
+   "label": "Mobile Number Field",
+   "read_only": 1
   },
   {
+   "default": "full_name",
    "depends_on": "eval:doc.import_from_doctype==1",
    "description": "Field name containing the recipient name (optional)",
    "fieldname": "name_field",
    "fieldtype": "Data",
-   "label": "Name Field"
+   "label": "Name Field",
+   "read_only": 1
   },
   {
    "depends_on": "eval:doc.import_from_doctype==1",
@@ -85,7 +92,8 @@
    "fieldname": "import_filters",
    "fieldtype": "Code",
    "label": "Filters",
-   "options": "JSON"
+   "options": "JSON",
+   "read_only": 1
   },
   {
    "depends_on": "eval:doc.import_from_doctype==1",
@@ -124,7 +132,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-21 16:45:21.775292",
+ "modified": "2025-08-24 14:15:54.447320",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Recipient List",

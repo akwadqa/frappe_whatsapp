@@ -5,80 +5,92 @@ from frappe.model.document import Document
 
 
 class WhatsAppRecipientList(Document):
-	def validate(self):
-		self.validate_recipients()
-	
-	def validate_recipients(self):
-		if not self.is_new():
-			if not self.recipients:
-				frappe.throw(_("At least one recipient is required"))
-	
-	def import_list_from_doctype(self, doctype, mobile_field, name_field=None, filters=None, limit=None, data_fields=None):
-		"""Import recipients from another DocType"""
-		self.doctype_to_import = doctype
-		self.mobile_field = mobile_field
-		self.filters = filters
-		if data_fields:
-			self.data_fields = json.dumps(data_fields)
+    def validate(self):
+        self.validate_recipients()
+        self.validate_occasion()
+    
+    def validate_recipients(self):
+        if not self.is_new():
+            if not self.recipients:
+                frappe.throw(_("At least one recipient is required"))
+    
+    def validate_occasion(self):
+        if not self.recipients:
+            return
 
-		if limit:
-			self.import_limit = limit
+        for row in self.recipients:
+            invitee_occasion = frappe.db.get_value("Occasion Invitee", row.occasion_invitee, "occasion")
+            if invitee_occasion != self.occasion:
+                frappe.throw(
+                    _("Occasion of Invitee <b>{0}</b> must match the Occasion of this list.").format(row.occasion_invitee)
+                )
+    
+    def import_list_from_doctype(self, doctype, mobile_field, name_field=None, filters=None, limit=None, data_fields=None):
+        """Import recipients from another DocType"""
+        self.doctype_to_import = doctype
+        self.mobile_field = mobile_field
+        self.filters = filters
+        if data_fields:
+            self.data_fields = json.dumps(data_fields)
 
-		fields = [mobile_field]
-		if name_field:
-			fields.append(name_field)
-		if self.doctype_to_import == "Occasion Invitee":
-			fields.append("name")
-		if data_fields:
-			meta = frappe.get_meta(doctype)
-			# print(meta.fields)
-			for field in meta.fields:
-				if field.fieldname not in fields and field.fieldname in data_fields:
-					fields.append(field.fieldname)
-		# Get records from the doctype
-		records = frappe.get_all(
-			doctype,
-			filters=filters,
-			fields=fields,
-			limit=limit
-		)
-		
-		# Clear existing recipients
-		self.recipients = []
-		
-		# Add recipients
-		for record in records:
-			if not record.get(mobile_field):
-				continue
-				
-			# Format mobile number
-			mobile = record.get(mobile_field)
-			# Remove any non-numeric characters except '+'
-			mobile = ''.join(char for char in mobile if char.isdigit() or char == '+')
-			
-			if not mobile:
-				continue
+        if limit:
+            self.import_limit = limit
 
-			recipient_data = {}
-			if data_fields:
-				for field in data_fields:
-					if record.get(field):
-						# Use field name as the variable name in recipient data
-						variable_name = field.lower().replace(" ", "_")
-						recipient_data[variable_name] = record.get(field)
+        fields = [mobile_field]
+        if name_field:
+            fields.append(name_field)
+        if self.doctype_to_import == "Occasion Invitee":
+            fields.append("name")
+        if data_fields:
+            meta = frappe.get_meta(doctype)
+            # print(meta.fields)
+            for field in meta.fields:
+                if field.fieldname not in fields and field.fieldname in data_fields:
+                    fields.append(field.fieldname)
+        # Get records from the doctype
+        records = frappe.get_all(
+            doctype,
+            filters=filters,
+            fields=fields,
+            limit=limit
+        )
+        
+        # Clear existing recipients
+        self.recipients = []
+        
+        # Add recipients
+        for record in records:
+            if not record.get(mobile_field):
+                continue
+                
+            # Format mobile number
+            mobile = record.get(mobile_field)
+            # Remove any non-numeric characters except '+'
+            mobile = ''.join(char for char in mobile if char.isdigit() or char == '+')
+            
+            if not mobile:
+                continue
 
-				
-			recipient = {
-				"mobile_number": mobile,
-				"recipient_data": json.dumps(recipient_data)
-			}
-			
-			if name_field and record.get(name_field):
-				recipient["recipient_name"] = record.get(name_field)
-			
-			if self.doctype_to_import == "Occasion Invitee" and record.get("name"):
-				recipient["occasion_invitee"] = record.get("name")
-				
-			self.append("recipients", recipient)
-		
-		return len(self.recipients)
+            recipient_data = {}
+            if data_fields:
+                for field in data_fields:
+                    if record.get(field):
+                        # Use field name as the variable name in recipient data
+                        variable_name = field.lower().replace(" ", "_")
+                        recipient_data[variable_name] = record.get(field)
+
+                
+            recipient = {
+                "mobile_number": mobile,
+                "recipient_data": json.dumps(recipient_data)
+            }
+            
+            if name_field and record.get(name_field):
+                recipient["recipient_name"] = record.get(name_field)
+            
+            if self.doctype_to_import == "Occasion Invitee" and record.get("name"):
+                recipient["occasion_invitee"] = record.get("name")
+                
+            self.append("recipients", recipient)
+        
+        return len(self.recipients)
