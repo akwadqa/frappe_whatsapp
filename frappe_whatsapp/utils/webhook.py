@@ -5,6 +5,8 @@ import requests
 import time
 from werkzeug.wrappers import Response
 import frappe.utils
+import base64, io, json, requests
+from PIL import Image
 
 
 @frappe.whitelist(allow_guest=True)
@@ -215,30 +217,118 @@ def update_invitee_rsvp_status(message_id, reply):
             message="update_invitee_rsvp_status was called without a message_id"
         )
         return
-    
+
     occasion_invitee = frappe.db.get_value(
         "WhatsApp Message",
         filters={"message_id": message_id},
         fieldname="occasion_invitee"
     )
-
     if not occasion_invitee:
-        frappe.log_error(title="No invitee found", message = f"No invitee found for message_id={message_id}")
+        frappe.log_error(
+            title="No invitee found",
+            message=f"No invitee found for message_id={message_id}"
+        )
         return
 
     status_map = {
         "تأكيد": "Confirmed",
         "اعتذار": "Declined",
     }
-
     new_status = status_map.get(reply)
     if not new_status:
-        frappe.log_error(title="Unrecognized reply", message = f"Unrecognized reply: {reply}")
+        frappe.log_error(
+            title="Unrecognized reply",
+            message=f"Unrecognized reply: {reply}"
+        )
         return
 
     doc = frappe.get_doc("Occasion Invitee", occasion_invitee)
     doc.rsvp_status = new_status
+
+    # Check if QR code is required and generate ticket_id
+    requires_qr_code = frappe.db.get_value("Occasion", doc.occasion, "requires_qr_code")
+    if requires_qr_code and new_status == "Confirmed" and not doc.ticket_id:
+        doc.ticket_id = message_id
+
     doc.save(ignore_permissions=True)
     frappe.db.commit()
+
+    # Handle sending response messages
+    def send_whatsapp_message(template, extra_fields=None):
+        """Helper to create outgoing WhatsApp message"""
+        message_data = {
+            "doctype": "WhatsApp Message",
+            "type": "Outgoing",
+            "to": doc.whatsapp_number,
+            "occasion_invitee": doc.name,
+            "message_type": "Template",
+            "template": template,
+        }
+        if extra_fields:
+            message_data.update(extra_fields)
+        frappe.get_doc(message_data).insert(ignore_permissions=True)
+
+    if new_status == "Confirmed":
+        confirmed_template = frappe.db.get_value("Occasion", doc.occasion, "confirmed_template")
+        if confirmed_template:
+            if doc.qr_raw_data:
+                # Upload QR code to WABA and send with media_id
+                doc.media_id = upload_base64_png_to_waba(doc.qr_raw_data)
+                send_whatsapp_message(confirmed_template, {
+                    "content_type": "image",
+                    "media_id": doc.media_id,
+                })
+            else:
+                # Send template without image
+                send_whatsapp_message(confirmed_template)
+
+            doc.replied = 1
+            doc.save(ignore_permissions=True)
+            frappe.db.commit()
+
+    elif new_status == "Declined":
+        declined_template = frappe.db.get_value("Occasion", doc.occasion, "declined_template")
+        if declined_template:
+            send_whatsapp_message(declined_template)
+            doc.replied = 1
+            doc.save(ignore_permissions=True)
+            frappe.db.commit()
+
+
+def upload_base64_png_to_waba(b64_png: str) -> str:
+    """Uploads a PNG to WABA and returns media_id."""
+    settings = frappe.get_doc(
+            "WhatsApp Settings",
+            "WhatsApp Settings",
+        )
+    token = settings.get_password("token")
+
+    headers = {
+        "authorization": f"Bearer {token}",
+        "content-type": "application/json",
+    }    
+    
+    url = f"{settings.url}/{settings.version}/{settings.phone_id}/media"
+
+    png_bytes = normalize_png(b64_png)
+    files = {"file": ("qr.png", io.BytesIO(png_bytes), "image/png")}
+    data = {"messaging_product": "whatsapp"}
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = requests.post(url, headers=headers, data=data, files=files, timeout=30)
+    resp.raise_for_status()
+    return resp.json()["id"]
+
+def normalize_png(b64_png: str) -> bytes:
+    """Ensure PNG is RGB 8-bit and return clean binary."""
+    raw = base64.b64decode(b64_png.split(",", 1)[1] if "," in b64_png else b64_png)
+    im = Image.open(io.BytesIO(raw))
+
+    if im.mode not in ("RGB", "RGBA"):
+        im = im.convert("RGB")
+
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")   # Pillow will default to 8-bit RGB/ RGBA
+    return buf.getvalue()
         
         

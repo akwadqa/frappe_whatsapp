@@ -118,12 +118,13 @@
    "fieldtype": "Link",
    "label": "Occasion",
    "mandatory_depends_on": "eval: doc.doctype_to_import == \"Occasion Invitee\"",
-   "options": "Occasion"
+   "options": "Occasion",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-20 15:23:44.565087",
+ "modified": "2025-08-21 16:45:21.775292",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Recipient List",

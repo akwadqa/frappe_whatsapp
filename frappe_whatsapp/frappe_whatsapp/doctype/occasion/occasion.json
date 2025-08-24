@@ -21,6 +21,7 @@
   "invite_template",
   "column_break_vggy",
   "confirmed_template",
+  "requires_qr_code",
   "column_break_dtgs",
   "declined_template"
  ],
@@ -113,6 +114,13 @@
    "fieldtype": "Link",
    "label": "Declined Template",
    "options": "WhatsApp Templates"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval: doc.confirmed_template",
+   "fieldname": "requires_qr_code",
+   "fieldtype": "Check",
+   "label": "Requires QR Code"
   }
  ],
  "grid_page_length": 50,
@@ -134,7 +142,7 @@
    "link_fieldname": "occasion"
   }
  ],
- "modified": "2025-08-21 16:16:56.264874",
+ "modified": "2025-08-24 11:14:33.936160",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "Occasion",

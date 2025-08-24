@@ -95,19 +95,30 @@ class WhatsAppMessage(Document):
 
         if template.header_type and template.sample:
             if template.header_type == 'IMAGE':
-                if template.sample.startswith("http"):
-                    url = f'{template.sample}'
-                else:
-                    url = f'{frappe.utils.get_url()}{template.sample}'
-                data['template']['components'].append({
+                if self.media_id:
+                    data['template']['components'].append({
                     "type": "header",
                     "parameters": [{
                         "type": "image",
                         "image": {
-                            "link": url
+                            "id": self.media_id
                         }
                     }]
                 })
+                else:
+                    if template.sample.startswith("http"):
+                        url = f'{template.sample}'
+                    else:
+                        url = f'{frappe.utils.get_url()}{template.sample}'
+                    data['template']['components'].append({
+                        "type": "header",
+                        "parameters": [{
+                            "type": "image",
+                            "image": {
+                                "link": url
+                            }
+                        }]
+                    })
 
         self.notify(data)
 
@@ -132,10 +143,10 @@ class WhatsAppMessage(Document):
             self.message_id = response["messages"][0]["id"]
             if self.occasion_invitee:
                 doc = frappe.get_doc("Occasion Invitee", self.occasion_invitee)
-                doc.ticket_id = self.message_id 
-                doc.rsvp_status = "Pending"
-                doc.save(ignore_permissions=True)
-                frappe.db.commit()
+                if not doc.ticket_id:
+                    doc.rsvp_status = "Pending"
+                    doc.save(ignore_permissions=True)
+                    frappe.db.commit()
 
         except Exception as e:
             res = frappe.flags.integration_request.json()["error"]
