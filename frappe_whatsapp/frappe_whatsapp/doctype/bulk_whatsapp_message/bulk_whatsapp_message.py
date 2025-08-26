@@ -91,6 +91,8 @@ class BulkWhatsAppMessage(Document):
         wa_message.to = recipient.get("mobile_number")
         wa_message.message_type = "Text"
         wa_message.occasion_invitee = recipient.get("occasion_invitee")
+        wa_message.reference_doctype = "Occasion"
+        wa_message.reference_name = frappe.db.get_value("Occasion Invitee" , recipient.get("occasion_invitee") , "occasion")
         # wa_message.message = message_content
         wa_message.flags.custom_ref_doc = json.loads(recipient.get("recipient_data", "{}"))
         wa_message.bulk_message_reference = self.name

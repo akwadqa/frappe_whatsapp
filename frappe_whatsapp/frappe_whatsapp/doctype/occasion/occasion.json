@@ -12,9 +12,8 @@
   "column_break_ewkq",
   "to",
   "location_section",
-  "location",
-  "column_break_cjwv",
   "map_link",
+  "column_break_cjwv",
   "section_break_jnzx",
   "participants",
   "templates_section",
@@ -59,18 +58,14 @@
    "label": "Location"
   },
   {
-   "fieldname": "location",
-   "fieldtype": "Data",
-   "label": "Location"
-  },
-  {
    "fieldname": "column_break_cjwv",
    "fieldtype": "Column Break"
   },
   {
    "fieldname": "map_link",
    "fieldtype": "Data",
-   "label": "Map Link"
+   "label": "Map Link",
+   "reqd": 1
   },
   {
    "fieldname": "section_break_jnzx",
@@ -142,7 +137,7 @@
    "link_fieldname": "occasion"
   }
  ],
- "modified": "2025-08-24 11:14:33.936160",
+ "modified": "2025-08-25 11:08:51.377845",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "Occasion",
