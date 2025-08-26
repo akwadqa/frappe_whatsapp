@@ -56,6 +56,9 @@ def post():
 
     if messages:
         for message in messages:
+            message_id = message['id']
+            if frappe.db.exists("WhatsApp Message", {"message_id": message_id}):
+                return
             message_type = message['type']
             is_reply = True if message.get('context') else False
             reply_to_message_id = message['context']['id'] if is_reply else None
@@ -233,6 +236,7 @@ def update_invitee_rsvp_status(message_id, reply):
     status_map = {
         "تأكيد": "Confirmed",
         "اعتذار": "Declined",
+        "موقع المناسبة": "Location"
     }
     new_status = status_map.get(reply)
     if not new_status:
@@ -243,7 +247,7 @@ def update_invitee_rsvp_status(message_id, reply):
         return
 
     doc = frappe.get_doc("Occasion Invitee", occasion_invitee)
-    doc.rsvp_status = new_status
+    doc.rsvp_status = new_status if new_status in ["Confirmed" , "Declined"] else doc.rsvp_status
 
     # Check if QR code is required and generate ticket_id
     requires_qr_code = frappe.db.get_value("Occasion", doc.occasion, "requires_qr_code")
@@ -262,7 +266,10 @@ def update_invitee_rsvp_status(message_id, reply):
             "to": doc.whatsapp_number,
             "occasion_invitee": doc.name,
             "message_type": "Template",
+            "use_template": 1,
             "template": template,
+            "reference_doctype": "Occasion",
+            "reference_name": doc.occasion
         }
         if extra_fields:
             message_data.update(extra_fields)
@@ -292,6 +299,20 @@ def update_invitee_rsvp_status(message_id, reply):
             send_whatsapp_message(declined_template)
             doc.replied = 1
             doc.save(ignore_permissions=True)
+            frappe.db.commit()
+    elif new_status == "Location":
+        map_link = frappe.db.get_value("Occasion", doc.occasion, "map_link")
+        if map_link:
+            message_data = {
+                "doctype": "WhatsApp Message",
+                "type": "Outgoing",
+                "to": doc.whatsapp_number,
+                "occasion_invitee": doc.name,
+                "message": map_link,
+                "reference_doctype": "Occasion",
+                "reference_name": doc.occasion
+            }
+            frappe.get_doc(message_data).insert(ignore_permissions=True)
             frappe.db.commit()
 
 
