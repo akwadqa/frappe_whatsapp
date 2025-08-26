@@ -6,6 +6,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "invitee_details_tab",
   "contact_info_section",
   "invitee",
   "column_break_zgpq",
@@ -15,19 +16,25 @@
   "occasion",
   "qr_code",
   "column_break_yntq",
+  "party_size",
   "hidden_fields_section",
   "ticket_id",
   "qr_raw_data",
   "media_id",
+  "rsvp_tab",
   "rsvp_section",
   "rsvp_status",
-  "replied"
+  "replied",
+  "checkin_details_tab",
+  "checkin_count",
+  "last_checkin"
  ],
  "fields": [
   {
    "fieldname": "invitee",
    "fieldtype": "Link",
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Invitee",
    "options": "Contact",
    "reqd": 1
@@ -40,6 +47,7 @@
    "fetch_from": "invitee.phone",
    "fieldname": "whatsapp_number",
    "fieldtype": "Data",
+   "in_list_view": 1,
    "label": "Whatsapp Number",
    "read_only": 1
   },
@@ -51,12 +59,13 @@
   {
    "fieldname": "occasion_details_section",
    "fieldtype": "Section Break",
-   "label": "Occasion Details"
+   "label": "Occasion Info"
   },
   {
    "fieldname": "occasion",
    "fieldtype": "Link",
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Occasion",
    "options": "Occasion",
    "reqd": 1
@@ -104,8 +113,7 @@
   },
   {
    "fieldname": "rsvp_section",
-   "fieldtype": "Section Break",
-   "label": "RSVP"
+   "fieldtype": "Section Break"
   },
   {
    "fieldname": "media_id",
@@ -117,12 +125,43 @@
    "fieldtype": "Section Break",
    "hidden": 1,
    "label": "Hidden Section"
+  },
+  {
+   "fieldname": "party_size",
+   "fieldtype": "Int",
+   "label": "Party Size"
+  },
+  {
+   "fieldname": "checkin_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Checkin Info"
+  },
+  {
+   "fieldname": "invitee_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Invitation Info"
+  },
+  {
+   "fieldname": "rsvp_tab",
+   "fieldtype": "Tab Break",
+   "label": "RSVP"
+  },
+  {
+   "fieldname": "checkin_count",
+   "fieldtype": "Int",
+   "label": "Checkin Count"
+  },
+  {
+   "fieldname": "last_checkin",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Last Checkin"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-24 11:11:19.905772",
+ "modified": "2025-08-26 13:24:36.331838",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "Occasion Invitee",

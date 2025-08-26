@@ -86,6 +86,7 @@
   {
    "fieldname": "invite_template",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Invite Template",
    "options": "WhatsApp Templates",
    "reqd": 1
@@ -122,22 +123,32 @@
  "index_web_pages_for_search": 1,
  "links": [
   {
-   "group": "Connections",
+   "group": "Invitations",
    "link_doctype": "Occasion Invitee",
    "link_fieldname": "occasion"
   },
   {
-   "group": "Connections",
+   "group": "Communication",
    "link_doctype": "WhatsApp Recipient List",
    "link_fieldname": "occasion"
   },
   {
-   "group": "Connections",
+   "group": "Communication",
    "link_doctype": "Bulk WhatsApp Message",
+   "link_fieldname": "occasion"
+  },
+  {
+   "group": "Check-in",
+   "link_doctype": "Occasion Gate Checkin",
+   "link_fieldname": "occasion"
+  },
+  {
+   "group": "Check-in",
+   "link_doctype": "Occasion Checkin Log",
    "link_fieldname": "occasion"
   }
  ],
- "modified": "2025-08-25 11:08:51.377845",
+ "modified": "2025-08-26 21:40:43.078778",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "Occasion",
