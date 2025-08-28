@@ -78,7 +78,16 @@ class WhatsAppMessage(Document):
             else:
                 ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
                 for field_name in field_names:
-                    value = ref_doc.get_formatted(field_name.strip())
+                    if "[" in field_name and "]" in field_name:
+                        table_field, rest = field_name.split("[", 1)
+                        idx = int(rest.split("]")[0])  # extract index
+                        child_field = rest.split("].")[1]
+
+                        value = ref_doc.get(table_field)[idx].get(child_field)
+                    else:
+                        value = ref_doc.get_formatted(field_name.strip())
+
+                    # value = ref_doc.get_formatted(field_name.strip())
 
                     parameters.append({"type": "text", "text": value})
                     template_parameters.append(value)

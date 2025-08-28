@@ -268,8 +268,8 @@ def update_invitee_rsvp_status(message_id, reply):
             "message_type": "Template",
             "use_template": 1,
             "template": template,
-            "reference_doctype": "Occasion",
-            "reference_name": doc.occasion
+            "reference_doctype": "Occasion Invitee",
+            "reference_name": doc.name
         }
         if extra_fields:
             message_data.update(extra_fields)
