@@ -39,6 +39,14 @@ class WhatsAppMessage(Document):
 
             elif self.content_type == "audio":
                 data["text"] = {"link": link}
+            
+            elif self.content_type == "location":
+                data["location"] = {
+                    "latitude": self.latitude,
+                    "longitude": self.longitude, 
+                    "name": self.location_name, 
+                    "address": self.location_address
+                }
 
             try:
                 self.notify(data)

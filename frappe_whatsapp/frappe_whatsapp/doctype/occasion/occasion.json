@@ -7,6 +7,8 @@
  "engine": "InnoDB",
  "field_order": [
   "type",
+  "column_break_iwrm",
+  "title",
   "timeline_section",
   "from",
   "column_break_ewkq",
@@ -14,6 +16,8 @@
   "location_section",
   "map_link",
   "column_break_cjwv",
+  "location_name",
+  "location_address",
   "section_break_jnzx",
   "participants",
   "templates_section",
@@ -63,7 +67,7 @@
   },
   {
    "fieldname": "map_link",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Map Link",
    "reqd": 1
   },
@@ -98,6 +102,7 @@
   {
    "fieldname": "confirmed_template",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Confirmed Template",
    "options": "WhatsApp Templates"
   },
@@ -108,6 +113,7 @@
   {
    "fieldname": "declined_template",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Declined Template",
    "options": "WhatsApp Templates"
   },
@@ -117,6 +123,26 @@
    "fieldname": "requires_qr_code",
    "fieldtype": "Check",
    "label": "Requires QR Code"
+  },
+  {
+   "fieldname": "column_break_iwrm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "bold": 1,
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title"
+  },
+  {
+   "fieldname": "location_name",
+   "fieldtype": "Data",
+   "label": "Location Name"
+  },
+  {
+   "fieldname": "location_address",
+   "fieldtype": "Data",
+   "label": "Location Address"
   }
  ],
  "grid_page_length": 50,
@@ -148,7 +174,7 @@
    "link_fieldname": "occasion"
   }
  ],
- "modified": "2025-08-26 21:40:43.078778",
+ "modified": "2025-08-31 13:54:31.350606",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "Occasion",
@@ -169,7 +195,9 @@
   }
  ],
  "row_format": "Dynamic",
+ "show_title_field_in_link": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "title"
 }

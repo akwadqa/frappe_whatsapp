@@ -28,6 +28,12 @@
   "section_break_iyjf",
   "is_reply",
   "reply_to_message_id",
+  "location_details_section",
+  "location_name",
+  "location_address",
+  "column_break_ldlm",
+  "latitude",
+  "longitude",
   "section_break_dhba",
   "reference_doctype",
   "bulk_message_reference",
@@ -206,12 +212,43 @@
    "fieldtype": "Data",
    "label": "Media ID",
    "read_only": 1
+  },
+  {
+   "depends_on": "eval: doc.content_type == \"location\"",
+   "fieldname": "location_details_section",
+   "fieldtype": "Section Break",
+   "label": "Location Details",
+   "mandatory_depends_on": "eval: doc.content_type == \"location\""
+  },
+  {
+   "fieldname": "location_name",
+   "fieldtype": "Data",
+   "label": "Location Name"
+  },
+  {
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Latitude"
+  },
+  {
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Longitude"
+  },
+  {
+   "fieldname": "column_break_ldlm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "location_address",
+   "fieldtype": "Data",
+   "label": "Location Address"
   }
  ],
  "in_create": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-26 10:46:08.104880",
+ "modified": "2025-08-31 11:55:38.089357",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Message",

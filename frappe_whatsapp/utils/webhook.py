@@ -7,6 +7,8 @@ from werkzeug.wrappers import Response
 import frappe.utils
 import base64, io, json, requests
 from PIL import Image
+import re
+from urllib.parse import unquote, urlparse
 
 
 @frappe.whitelist(allow_guest=True)
@@ -214,106 +216,126 @@ def update_message_status(data):
 def update_invitee_rsvp_status(message_id, reply):
     """Update RSVP status of an Occasion Invitee based on WhatsApp reply."""    
     
-    if not message_id:
-        frappe.log_error(
-            title="Missing message_id",
-            message="update_invitee_rsvp_status was called without a message_id"
+    try:
+        if not message_id:
+            frappe.log_error(
+                title="Missing message_id",
+                message="update_invitee_rsvp_status was called without a message_id"
+            )
+            return
+
+        occasion_invitee = frappe.db.get_value(
+            "WhatsApp Message",
+            filters={"message_id": message_id},
+            fieldname="occasion_invitee"
         )
-        return
+        if not occasion_invitee:
+            frappe.log_error(
+                title="No invitee found",
+                message=f"No invitee found for message_id={message_id}"
+            )
+            return
 
-    occasion_invitee = frappe.db.get_value(
-        "WhatsApp Message",
-        filters={"message_id": message_id},
-        fieldname="occasion_invitee"
-    )
-    if not occasion_invitee:
-        frappe.log_error(
-            title="No invitee found",
-            message=f"No invitee found for message_id={message_id}"
-        )
-        return
-
-    status_map = {
-        "تأكيد": "Confirmed",
-        "اعتذار": "Declined",
-        "موقع المناسبة": "Location"
-    }
-    new_status = status_map.get(reply)
-    if not new_status:
-        frappe.log_error(
-            title="Unrecognized reply",
-            message=f"Unrecognized reply: {reply}"
-        )
-        return
-
-    doc = frappe.get_doc("Occasion Invitee", occasion_invitee)
-    doc.rsvp_status = new_status if new_status in ["Confirmed" , "Declined"] else doc.rsvp_status
-
-    # Check if QR code is required and generate ticket_id
-    requires_qr_code = frappe.db.get_value("Occasion", doc.occasion, "requires_qr_code")
-    if requires_qr_code and new_status == "Confirmed" and not doc.ticket_id:
-        doc.ticket_id = message_id
-
-    doc.save(ignore_permissions=True)
-    frappe.db.commit()
-
-    # Handle sending response messages
-    def send_whatsapp_message(template, extra_fields=None):
-        """Helper to create outgoing WhatsApp message"""
-        message_data = {
-            "doctype": "WhatsApp Message",
-            "type": "Outgoing",
-            "to": doc.whatsapp_number,
-            "occasion_invitee": doc.name,
-            "message_type": "Template",
-            "use_template": 1,
-            "template": template,
-            "reference_doctype": "Occasion Invitee",
-            "reference_name": doc.name
+        status_map = {
+            "تأكيد": "Confirmed",
+            "اعتذار": "Declined",
+            "موقع المناسبة": "Location"
         }
-        if extra_fields:
-            message_data.update(extra_fields)
-        frappe.get_doc(message_data).insert(ignore_permissions=True)
+        new_status = status_map.get(reply)
+        if not new_status:
+            frappe.log_error(
+                title="Unrecognized reply",
+                message=f"Unrecognized reply: {reply}"
+            )
+            return
 
-    if new_status == "Confirmed":
-        confirmed_template = frappe.db.get_value("Occasion", doc.occasion, "confirmed_template")
-        if confirmed_template:
-            if doc.qr_raw_data:
-                # Upload QR code to WABA and send with media_id
-                doc.media_id = upload_base64_png_to_waba(doc.qr_raw_data)
-                send_whatsapp_message(confirmed_template, {
-                    "content_type": "image",
-                    "media_id": doc.media_id,
-                })
-            else:
-                # Send template without image
-                send_whatsapp_message(confirmed_template)
+        doc = frappe.get_doc("Occasion Invitee", occasion_invitee)
+        doc.rsvp_status = new_status if new_status in ["Confirmed" , "Declined"] else doc.rsvp_status
 
-            doc.replied = 1
-            doc.save(ignore_permissions=True)
-            frappe.db.commit()
+        # Check if QR code is required and generate ticket_id
+        requires_qr_code = frappe.db.get_value("Occasion", doc.occasion, "requires_qr_code")
+        if requires_qr_code and new_status == "Confirmed" and not doc.ticket_id:
+            doc.ticket_id = message_id
 
-    elif new_status == "Declined":
-        declined_template = frappe.db.get_value("Occasion", doc.occasion, "declined_template")
-        if declined_template:
-            send_whatsapp_message(declined_template)
-            doc.replied = 1
-            doc.save(ignore_permissions=True)
-            frappe.db.commit()
-    elif new_status == "Location":
-        map_link = frappe.db.get_value("Occasion", doc.occasion, "map_link")
-        if map_link:
+        doc.save(ignore_permissions=True)
+        frappe.db.commit()
+
+        # Handle sending response messages
+        def send_whatsapp_message(template, extra_fields=None):
+            """Helper to create outgoing WhatsApp message"""
             message_data = {
                 "doctype": "WhatsApp Message",
                 "type": "Outgoing",
                 "to": doc.whatsapp_number,
                 "occasion_invitee": doc.name,
-                "message": map_link,
-                "reference_doctype": "Occasion",
-                "reference_name": doc.occasion
+                "message_type": "Template",
+                "use_template": 1,
+                "template": template,
+                "reference_doctype": "Occasion Invitee",
+                "reference_name": doc.name
             }
+            if extra_fields:
+                message_data.update(extra_fields)
             frappe.get_doc(message_data).insert(ignore_permissions=True)
-            frappe.db.commit()
+
+        if new_status == "Confirmed":
+            confirmed_template = frappe.db.get_value("Occasion", doc.occasion, "confirmed_template")
+            if confirmed_template:
+                if doc.qr_raw_data:
+                    # Upload QR code to WABA and send with media_id
+                    doc.media_id = upload_base64_png_to_waba(doc.qr_raw_data)
+                    send_whatsapp_message(confirmed_template, {
+                        "content_type": "image",
+                        "media_id": doc.media_id,
+                    })
+                else:
+                    # Send template without image
+                    send_whatsapp_message(confirmed_template)
+
+                doc.replied = 1
+                doc.save(ignore_permissions=True)
+                frappe.db.commit()
+
+        elif new_status == "Declined":
+            declined_template = frappe.db.get_value("Occasion", doc.occasion, "declined_template")
+            if declined_template:
+                send_whatsapp_message(declined_template)
+                doc.replied = 1
+                doc.save(ignore_permissions=True)
+                frappe.db.commit()
+        elif new_status == "Location":
+            map_link = frappe.db.get_value("Occasion", doc.occasion, "map_link")
+            location_name = frappe.db.get_value("Occasion", doc.occasion, "location_name")
+            location_address = frappe.db.get_value("Occasion", doc.occasion, "location_address")
+            info = extract_google_maps_info(map_link)
+            if info.get("latitude") and info.get("longitude"):
+                message_data = {
+                    "doctype": "WhatsApp Message",
+                    "type": "Outgoing",
+                    "to": doc.whatsapp_number,
+                    "occasion_invitee": doc.name,
+                    "content_type": "location",
+                    "latitude": info.get("latitude"),
+                    "longitude": info.get("longitude"),
+                    "location_name": location_name,
+                    "location_address": location_address,
+                    "reference_doctype": "Occasion",
+                    "reference_name": doc.occasion
+                }
+                frappe.get_doc(message_data).insert(ignore_permissions=True)
+                frappe.db.commit()
+            else:
+                frappe.log_error(
+                title="Missing Location Info",
+                message=f"Missing location info for Occasion {doc.occasion}"
+            )
+            return
+    except Exception as e:
+        frappe.db.rollback()
+        frappe.log_error(
+            title="RSVP Update Failed",
+            message=f"message_id={message_id}, reply={reply}, error={str(e)}"
+        )
 
 
 def upload_base64_png_to_waba(b64_png: str) -> str:
@@ -351,5 +373,28 @@ def normalize_png(b64_png: str) -> bytes:
     buf = io.BytesIO()
     im.save(buf, format="PNG")   # Pillow will default to 8-bit RGB/ RGBA
     return buf.getvalue()
+
+def extract_google_maps_info(url):
+    """
+    Extracts latitude, longitude from a Google Maps URL."""   
+
+    # Extract lat/lng from !3dLAT!4dLNG pattern (more accurate than @lat,lng)
+    coord_match = re.search(r'!3d([-+]?[0-9]*\.?[0-9]+)!4d([-+]?[0-9]*\.?[0-9]+)', url)
+    if coord_match:
+        lat = float(coord_match.group(1))
+        lng = float(coord_match.group(2))
+    else:
+        # fallback to @lat,lng pattern
+        at_match = re.search(r'@([-+]?[0-9]*\.?[0-9]+),([-+]?[0-9]*\.?[0-9]+)', url)
+        if at_match:
+            lat = float(at_match.group(1))
+            lng = float(at_match.group(2))
+        else:
+            lat = lng = None
+
+    return {
+        "latitude": lat,
+        "longitude": lng
+    }
         
         
