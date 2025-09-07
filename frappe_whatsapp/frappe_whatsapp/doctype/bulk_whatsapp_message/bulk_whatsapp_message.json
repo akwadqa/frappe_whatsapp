@@ -49,6 +49,7 @@
    "default": "Individual",
    "fieldname": "recipient_type",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "Recipient Type",
    "options": "\nIndividual\nRecipient List"
   },
@@ -86,10 +87,12 @@
   {
    "depends_on": "eval:doc.use_template==1",
    "description": "Make sure that Template variables are same as Recipient data fields",
+   "fetch_from": "occasion.invite_template",
    "fieldname": "template",
    "fieldtype": "Link",
    "label": "Template",
-   "options": "WhatsApp Templates"
+   "options": "WhatsApp Templates",
+   "read_only": 1
   },
   {
    "depends_on": "eval:doc.use_template==1",
@@ -144,6 +147,7 @@
    "fetch_from": "recipient_list.occasion",
    "fieldname": "occasion",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Occasion",
    "options": "Occasion"
   }
@@ -151,7 +155,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-24 14:30:56.347403",
+ "modified": "2025-08-28 13:05:56.613084",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "Bulk WhatsApp Message",

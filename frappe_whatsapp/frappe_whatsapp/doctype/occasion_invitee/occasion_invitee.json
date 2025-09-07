@@ -14,6 +14,7 @@
   "whatsapp_number",
   "occasion_details_section",
   "occasion",
+  "occasion_name",
   "qr_code",
   "column_break_yntq",
   "party_size",
@@ -156,12 +157,19 @@
    "fieldtype": "Datetime",
    "in_list_view": 1,
    "label": "Last Checkin"
+  },
+  {
+   "fetch_from": "occasion.title",
+   "fieldname": "occasion_name",
+   "fieldtype": "Data",
+   "label": "Occasion Name",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-26 13:24:36.331838",
+ "modified": "2025-08-28 10:03:58.207656",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "Occasion Invitee",
