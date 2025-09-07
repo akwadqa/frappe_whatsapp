@@ -1,7 +1,7 @@
 app_name = "frappe_whatsapp"
 app_title = "Frappe WhatsApp"
-app_publisher = "Akwad"
-app_description = "Test"
+app_publisher = "Akwad Programming"
+app_description = "Integration of Frappe Framework with WhatsApp Business API"
 app_email = "support@akwad.qa"
 app_license = "mit"
 

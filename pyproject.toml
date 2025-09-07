@@ -1,9 +1,9 @@
 [project]
 name = "frappe_whatsapp"
 authors = [
-    { name = "Akwad", email = "support@akwad.qa"}
+    { name = "Akwad Programming", email = "support@akwad.qa"}
 ]
-description = "Test"
+description = "Integration of Frappe Framework with WhatsApp Business API"
 requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]

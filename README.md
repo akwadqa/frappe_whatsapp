@@ -1,6 +1,6 @@
 ### Frappe WhatsApp
 
-Test
+Integration of Frappe Framework with WhatsApp Business API
 
 ### Installation
 
