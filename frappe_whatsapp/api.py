@@ -10,40 +10,39 @@ def gen_response(status_code, error, message, data=None):
     frappe.response["data"] = data or []
 # ================================================================================
 @frappe.whitelist(allow_guest=True)
-def login(email: str, password: str):
+def login(email: str, password: str) -> None:
     """
-    Login Gate User and return API Key + Secret for token-based auth.
+    Authenticate user and return API Key + Secret for token-based authentication.
     """
-
-    # Authenticate using Frappe's LoginManager
     login_manager = LoginManager()
     try:
         login_manager.authenticate(email, password)
         login_manager.post_login()
-    except Exception as e:
-        gen_response(401, 1, _("Invalid email or password") )
+    except Exception: 
+        gen_response(401, 1, _("Invalid email or password"))
 
-    user = frappe.session.user    
+    user = frappe.session.user
+    user_doc = frappe.get_doc("User", user)
 
-    # Ensure API key/secret exists
-    api_key = frappe.db.get_value("User", user, "api_key")
-    api_secret = frappe.db.get_value("User", user, "api_secret")
+    # Ensure API key and secret exist
+    api_key = user_doc.api_key
+    api_secret = user_doc.get_password("api_secret")
 
     if not api_key or not api_secret:
-        # Generate new API key/secret
-        user_doc = frappe.get_doc("User", user)
         user_doc.api_key = frappe.generate_hash(length=15)
         user_doc.api_secret = frappe.generate_hash(length=30)
         user_doc.save(ignore_permissions=True)
-        api_key, api_secret = user_doc.api_key, user_doc.api_secret
+        frappe.db.commit()
+        api_key = user_doc.api_key
+        api_secret = user_doc.get_password("api_secret")
 
-    data = [{
+    data = {
         "user": user,
-        "api_key": api_key,
-        "api_secret": api_secret
-    }]
+        "full_name": user_doc.full_name,
+        "token": f"token {api_key}:{api_secret}"
+    }
 
-    gen_response(200, 0, _("Login successful"), data )
+    gen_response(200, 0, _("Login successful"), data)
 # ================================================================================
 @frappe.whitelist()
 def check_in(qr_code: str, gate: str, checkin_by: str):
