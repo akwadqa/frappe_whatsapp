@@ -65,8 +65,7 @@
    "fieldname": "doctype_to_import",
    "fieldtype": "Link",
    "label": "DocType to Import",
-   "options": "DocType",
-   "read_only": 1
+   "options": "DocType"
   },
   {
    "default": "whatsapp_number",
@@ -74,8 +73,7 @@
    "description": "Field name containing the mobile number",
    "fieldname": "mobile_field",
    "fieldtype": "Data",
-   "label": "Mobile Number Field",
-   "read_only": 1
+   "label": "Mobile Number Field"
   },
   {
    "default": "full_name",
@@ -83,8 +81,7 @@
    "description": "Field name containing the recipient name (optional)",
    "fieldname": "name_field",
    "fieldtype": "Data",
-   "label": "Name Field",
-   "read_only": 1
+   "label": "Name Field"
   },
   {
    "depends_on": "eval:doc.import_from_doctype==1",
@@ -92,8 +89,7 @@
    "fieldname": "import_filters",
    "fieldtype": "Code",
    "label": "Filters",
-   "options": "JSON",
-   "read_only": 1
+   "options": "JSON"
   },
   {
    "depends_on": "eval:doc.import_from_doctype==1",
@@ -132,9 +128,9 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-24 14:15:54.447320",
+ "modified": "2025-09-14 09:19:34.466287",
  "modified_by": "Administrator",
- "module": "Frappe Whatsapp",
+ "module": "Frappe WhatsApp",
  "name": "WhatsApp Recipient List",
  "naming_rule": "By fieldname",
  "owner": "Administrator",

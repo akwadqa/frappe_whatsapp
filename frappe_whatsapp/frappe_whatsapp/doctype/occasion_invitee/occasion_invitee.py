@@ -9,7 +9,7 @@ from frappe_whatsapp.qr_code import get_qr_code
 
 class OccasionInvitee(Document):
     def validate(self):
-        self.check_duplicate()
+    #    self.check_duplicate()
         if self.ticket_id:
             self.qr_raw_data = get_qr_code(self.ticket_id)
     
