@@ -209,9 +209,22 @@ def update_message_status(data):
 
     doc = frappe.get_doc("WhatsApp Message", name)
     doc.status = status
+    
+    # Update Occasion Invitee RSVP status
+    if doc.occasion_invitee and frappe.db.exists("Occasion Invitee", doc.occasion_invitee):
+        occ_inv_doc = frappe.get_doc("Occasion Invitee", doc.occasion_invitee)
+        if occ_inv_doc.rsvp_status in ["Not Sent", "Failed"] and not occ_inv_doc.ticket_id:
+            if status == "sent":
+                occ_inv_doc.rsvp_status = "Pending"
+            elif status == "failed":
+                occ_inv_doc.rsvp_status = "Failed"
+
+            occ_inv_doc.save(ignore_permissions=True)           
+                    
     if conversation:
         doc.conversation_id = conversation
     doc.save(ignore_permissions=True)
+    frappe.db.commit()
 
 def update_invitee_rsvp_status(message_id, reply):
     """Update RSVP status of an Occasion Invitee based on WhatsApp reply."""    

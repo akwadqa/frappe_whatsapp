@@ -103,7 +103,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "RSVP Status",
-   "options": "Not Sent\nPending\nConfirmed\nDeclined"
+   "options": "Not Sent\nPending\nConfirmed\nDeclined\nFailed"
   },
   {
    "default": "0",
@@ -169,9 +169,9 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-09-13 13:49:25.189655",
+ "modified": "2025-09-14 14:19:59.701284",
  "modified_by": "Administrator",
- "module": "Frappe WhatsApp",
+ "module": "Frappe Whatsapp",
  "name": "Occasion Invitee",
  "naming_rule": "Expression",
  "owner": "Administrator",

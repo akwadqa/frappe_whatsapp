@@ -157,13 +157,7 @@ class WhatsAppMessage(Document):
                 headers=headers,
                 data=json.dumps(data),
             )
-            self.message_id = response["messages"][0]["id"]
-            if self.occasion_invitee:
-                doc = frappe.get_doc("Occasion Invitee", self.occasion_invitee)
-                if not doc.ticket_id and doc.rsvp_status == "Not Sent":
-                    doc.rsvp_status = "Pending"
-                    doc.save(ignore_permissions=True)
-                    frappe.db.commit()
+            self.message_id = response["messages"][0]["id"]           
 
         except Exception as e:
             res = frappe.flags.integration_request.json()["error"]
