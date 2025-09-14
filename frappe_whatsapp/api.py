@@ -132,3 +132,38 @@ def get_active_gates():
 
     gen_response(200, 0, _("Active Gates fetched successfully"), gates)
 # ================================================================================
+@frappe.whitelist()
+def get_invitees(occasion, rsvp_status=None, whatsapp_number=None):
+    """
+    Fetch list of Occasion Invitees with optional filters:
+    - rsvp_status: exact match
+    - whatsapp_number: partial match
+    """
+    try:
+        conditions = ["occasion=%s"]
+        values = [occasion]
+
+        if rsvp_status:
+            conditions.append("rsvp_status=%s")
+            values.append(rsvp_status)
+
+        if whatsapp_number:
+            conditions.append("whatsapp_number LIKE %s")
+            values.append(f"%{whatsapp_number}%")
+
+        where_clause = " AND ".join(conditions)
+        sql = """
+            SELECT 
+                name, full_name, whatsapp_number, occasion, occasion_name, 
+                rsvp_status, party_size 
+            FROM `tabOccasion Invitee`
+            WHERE {where_clause}
+        """.format(where_clause=where_clause)
+
+        invitees = frappe.db.sql(sql, values, as_dict=True)
+        gen_response(200, 0, _("Invitees fetched successfully"), invitees)
+
+    except Exception as e:
+        frappe.db.rollback()
+        gen_response(500, 1, _("Internal server error: {0}").format(str(e)))
+# ================================================================================
