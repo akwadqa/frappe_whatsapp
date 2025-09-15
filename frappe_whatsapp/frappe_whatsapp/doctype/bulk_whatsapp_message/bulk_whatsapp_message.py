@@ -132,6 +132,7 @@ class BulkWhatsAppMessage(Document):
         for msg in failed_messages:
             message_doc = frappe.get_doc("WhatsApp Message", msg.name)
             message_doc.status = "Queued"
+            message_doc.message_id = None
             message_doc.save(ignore_permissions=True)
             frappe.enqueue_doc(
                 "WhatsApp Message", 
