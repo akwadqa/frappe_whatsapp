@@ -133,6 +133,13 @@ class BulkWhatsAppMessage(Document):
             message_doc = frappe.get_doc("WhatsApp Message", msg.name)
             message_doc.status = "Queued"
             message_doc.save(ignore_permissions=True)
+            frappe.enqueue_doc(
+                "WhatsApp Message", 
+                msg.name, 
+                "send_message",
+                queue='long', 
+                timeout=600
+            )
             count += 1
         
         frappe.msgprint(_("{0} messages have been requeued for sending").format(count))
