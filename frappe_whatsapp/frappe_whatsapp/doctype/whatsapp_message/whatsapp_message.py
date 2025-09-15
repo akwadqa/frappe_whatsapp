@@ -60,7 +60,7 @@ class WhatsAppMessage(Document):
             except Exception as e:
                 self.status = "Failed"
                 frappe.throw(f"Failed to send message {str(e)}")
-        elif self.type == "Outgoing" and self.message_type == "Template" and self.status.lower() == "failed":
+        elif self.type == "Outgoing" and self.message_type == "Template":
             self.send_template()
 
     def send_template(self):
@@ -163,9 +163,13 @@ class WhatsAppMessage(Document):
                 headers=headers,
                 data=json.dumps(data),
             )
-            self.message_id = response["messages"][0]["id"]           
+            self.message_id = response["messages"][0]["id"]
+            self.status = "Success"
+            self.save(ignore_permissions=True)
+            frappe.db.commit()
 
         except Exception as e:
+            frappe.log_error(title="Failed to send notify" , message = str(e))
             res = frappe.flags.integration_request.json()["error"]
             error_message = res.get("Error", res.get("message"))
             frappe.get_doc(
