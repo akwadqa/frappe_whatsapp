@@ -3,11 +3,12 @@ from frappe import _
 from frappe.utils import now
 from frappe.auth import LoginManager
 
-def gen_response(status_code, error, message, data=None):
+def gen_response(status_code, error, message, data=None, pagination=None):
     frappe.response["status_code"] = status_code
     frappe.response["error"] = error
     frappe.response["message"] = str(message)
     frappe.response["data"] = data or []
+    frappe.response["pagination"] = pagination or []
 # ================================================================================
 @frappe.whitelist(allow_guest=True)
 def login(email: str, password: str) -> None:
@@ -191,15 +192,14 @@ def get_invitees(occasion, rsvp_status=None, whatsapp_number=None, full_name=Non
             200,
             0,
             _("Invitees fetched successfully"),
+            invitees,            
             {
-                "invitees": invitees,
-                "pagination": {
-                    "page": page,
-                    "page_size": page_size,
-                    "total": total_count,
-                    "total_pages": (total_count + page_size - 1) // page_size,
-                },
-            },
+                "page": page,
+                "page_size": page_size,
+                "total": total_count,
+                "total_pages": (total_count + page_size - 1) // page_size,
+            }
+            
         )
 
     except Exception as e:
