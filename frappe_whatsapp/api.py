@@ -143,11 +143,11 @@ def get_active_gates():
     gen_response(200, 0, _("Active Gates fetched successfully"), gates)
 # ================================================================================
 @frappe.whitelist()
-def get_invitees(occasion, rsvp_status=None, whatsapp_number=None, full_name=None, page=1, page_size=5):
+def get_invitees(occasion, rsvp_status=None, search=None, page=1, page_size=5):
     """
     Fetch list of Occasion Invitees with optional filters:
     - rsvp_status: exact match
-    - whatsapp_number: partial match
+    - search: partial match in full_name or whatsapp_number
     """
     try:
         page = int(page) if page else 1
@@ -161,13 +161,9 @@ def get_invitees(occasion, rsvp_status=None, whatsapp_number=None, full_name=Non
             conditions.append("rsvp_status=%s")
             values.append(rsvp_status)
 
-        if whatsapp_number:
-            conditions.append("whatsapp_number LIKE %s")
-            values.append(f"%{whatsapp_number}%")
-        
-        if full_name:
-            conditions.append("full_name LIKE %s")
-            values.append(f"%{full_name}%")
+        if search:
+            conditions.append("(full_name LIKE %s OR whatsapp_number LIKE %s)")
+            values.extend([f"%{search}%", f"%{search}%"])
 
         where_clause = " AND ".join(conditions)
 
@@ -185,21 +181,19 @@ def get_invitees(occasion, rsvp_status=None, whatsapp_number=None, full_name=Non
             WHERE {where_clause}
             LIMIT %s OFFSET %s
         """
-
         invitees = frappe.db.sql(sql, values + [page_size, offset], as_dict=True)
 
         gen_response(
             200,
             0,
             _("Invitees fetched successfully"),
-            invitees,            
+            invitees,
             {
                 "page": page,
                 "page_size": page_size,
                 "total": total_count,
                 "total_pages": (total_count + page_size - 1) // page_size,
             }
-            
         )
 
     except Exception as e:
