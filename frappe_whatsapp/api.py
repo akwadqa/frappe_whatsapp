@@ -45,33 +45,42 @@ def login(email: str, password: str) -> None:
     gen_response(200, 0, _("Login successful"), data)
 # ================================================================================
 @frappe.whitelist()
-def check_in(qr_code: str, gate: str, checkin_by: str):
+def check_in(gate: str, checkin_by: str, qr_code: str = None, invitee_id: str = None):
     """
-    Validate QR token (ticket_id) and log check-in.
+     Validate QR token (ticket_id) or invitee name and log check-in.
     """
 
     # Validate gate
     gate_doc = frappe.db.get_value("Occasion Gate Checkin", gate, ["name", "active"], as_dict=True)
     if not gate_doc or not gate_doc.active:
-        log_checkin(None, gate, qr_code, checkin_by, "Invalid")
+        log_checkin(invitee_id, gate, qr_code or invitee_id, checkin_by, "Invalid")
         gen_response(400, 1, _("Gate is inactive or not found"))
         return
 
-    # Lookup invitee by ticket_id
-    invitee = frappe.db.get_value(
-        "Occasion Invitee",
-        {"ticket_id": qr_code},
-        ["name", "occasion", "rsvp_status", "party_size", "checkin_count"],
-        as_dict=True
-    )
+    # Lookup invitee
+    invitee = None
+    if qr_code:
+        invitee = frappe.db.get_value(
+            "Occasion Invitee",
+            {"ticket_id": qr_code},
+            ["name", "occasion", "rsvp_status", "party_size", "checkin_count"],
+            as_dict=True
+        )
+    elif invitee_id:
+        invitee = frappe.db.get_value(
+            "Occasion Invitee",
+            {"name": invitee_id},
+            ["name", "occasion", "rsvp_status", "party_size", "checkin_count"],
+            as_dict=True
+        )
 
     if not invitee:
-        log_checkin(None, gate, qr_code, checkin_by, "Invalid")
-        gen_response(404, 1, _("QR code not recognized"))
+        log_checkin(None, gate, qr_code or invitee_id, checkin_by, "Invalid")
+        gen_response(404, 1, _("Invitee not recognized"))
         return
 
     if invitee.rsvp_status != "Confirmed":
-        log_checkin(invitee.name, gate, qr_code, checkin_by, "Invalid")
+        log_checkin(invitee.name, gate, qr_code or invitee.name, checkin_by, "Invalid")
         gen_response(403, 1, _("Invitee not confirmed"))
         return
 
@@ -85,7 +94,7 @@ def check_in(qr_code: str, gate: str, checkin_by: str):
         """, invitee.name, as_dict=True)[0]
 
         if row.checkin_count >= row.party_size:
-            log_checkin(invitee.name, gate, qr_code, checkin_by, "Duplicate")
+            log_checkin(invitee.name, gate, qr_code or invitee.name, checkin_by, "Duplicate")
             gen_response(409, 1, _("Already checked in"))
             return
 
@@ -95,7 +104,7 @@ def check_in(qr_code: str, gate: str, checkin_by: str):
             "last_checkin": now()
         })
 
-        log_checkin(invitee.name, gate, qr_code, checkin_by, "Success")
+        log_checkin(invitee.name, gate, qr_code or invitee.name, checkin_by, "Success")
 
         data = [{
             "invitee": invitee.name,
