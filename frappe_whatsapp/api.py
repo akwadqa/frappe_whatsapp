@@ -143,7 +143,7 @@ def get_active_gates():
     gen_response(200, 0, _("Active Gates fetched successfully"), gates)
 # ================================================================================
 @frappe.whitelist()
-def get_invitees(occasion, rsvp_status=None, search=None, page=1, page_size=5):
+def get_invitees(occasion, rsvp_status=None, search=None, page=1, page_size=10):
     """
     Fetch list of Occasion Invitees with optional filters:
     - rsvp_status: exact match
@@ -151,7 +151,7 @@ def get_invitees(occasion, rsvp_status=None, search=None, page=1, page_size=5):
     """
     try:
         page = int(page) if page else 1
-        page_size = int(page_size) if page_size else 5
+        page_size = int(page_size) if page_size else 10
         offset = (page - 1) * page_size
 
         conditions = ["occasion=%s"]
