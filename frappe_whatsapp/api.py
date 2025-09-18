@@ -8,7 +8,8 @@ def gen_response(status_code, error, message, data=None, pagination=None):
     frappe.response["error"] = error
     frappe.response["message"] = str(message)
     frappe.response["data"] = data or []
-    frappe.response["pagination"] = pagination or []
+    if pagination is not None:
+        frappe.response["pagination"] = pagination
 # ================================================================================
 @frappe.whitelist(allow_guest=True)
 def login(email: str, password: str) -> None:
@@ -52,11 +53,12 @@ def check_in(gate: str, checkin_by: str, qr_code: str = None, invitee_id: str = 
     """
 
     # Validate gate
-    gate_doc = frappe.db.get_value("Occasion Gate Checkin", gate, ["name", "active"], as_dict=True)
-    if not gate_doc or not gate_doc.active:
-        log_checkin(invitee_id, gate, qr_code or invitee_id, checkin_by, "Invalid")
-        gen_response(400, 1, _("Gate is inactive or not found"))
-        return
+    if gate:
+        gate_doc = frappe.db.get_value("Occasion Gate Checkin", gate, ["name", "active"], as_dict=True)
+        if not gate_doc or not gate_doc.active:
+            log_checkin(invitee_id, gate, qr_code or invitee_id, checkin_by, "Invalid")
+            gen_response(400, 1, _("Gate is inactive or not found"))
+            return
 
     # Lookup invitee
     invitee = None
