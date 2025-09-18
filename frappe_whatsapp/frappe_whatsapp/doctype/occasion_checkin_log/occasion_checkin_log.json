@@ -32,7 +32,7 @@
    "fieldtype": "Column Break"
   },
   {
-   "fetch_from": "gate.occasion",
+   "fetch_from": "invitee.occasion",
    "fieldname": "occasion",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -94,7 +94,7 @@
  "in_create": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-26 21:38:07.799177",
+ "modified": "2025-09-18 12:11:55.143748",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "Occasion Checkin Log",

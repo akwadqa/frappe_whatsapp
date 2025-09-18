@@ -85,7 +85,7 @@ def check_in(gate: str, checkin_by: str, qr_code: str = None, invitee_id: str = 
         gen_response(404, 1, _("Invitee not recognized"), [])
         return
 
-    if invitee.rsvp_status != "Confirmed":
+    if invitee.rsvp_status == "Declined":
         log_checkin(invitee.name, gate, qr_code or invitee.name, checkin_by, "Invalid")
         gen_response(403, 1, _("Invitee not confirmed"), [])
         return
