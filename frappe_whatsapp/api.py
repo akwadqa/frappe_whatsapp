@@ -7,7 +7,7 @@ def gen_response(status_code, error, message, data=None, pagination=None):
     frappe.response["status_code"] = status_code
     frappe.response["error"] = error
     frappe.response["message"] = str(message)
-    frappe.response["data"] = data or []
+    frappe.response["data"] = data or {}
     if pagination is not None:
         frappe.response["pagination"] = pagination
 # ================================================================================
@@ -20,31 +20,34 @@ def login(email: str, password: str) -> None:
     try:
         login_manager.authenticate(email, password)
         login_manager.post_login()
+        if frappe.response['message'] == 'Logged In':
+            token = generate_key(login_manager.user)
+            data = {
+                "user": email,
+                "full_name": frappe.db.get_value("User", email, "full_name"),
+                "token": token
+            }
+            gen_response(200, 0, _("Login successful"), data)
     except Exception: 
-        gen_response(401, 1, _("Invalid email or password"))
-
-    user = frappe.session.user
+        gen_response(401, 1, _("Invalid email or password"))     
+# ================================================================================
+def generate_key(user):
     user_doc = frappe.get_doc("User", user)
 
     # Ensure API key and secret exist
-    api_key = user_doc.api_key
-    api_secret = user_doc.get_password("api_secret")
+    api_key = user_doc.get("api_key")
+    api_secret = user_doc.get("api_secret")
 
     if not api_key or not api_secret:
         user_doc.api_key = frappe.generate_hash(length=15)
         user_doc.api_secret = frappe.generate_hash(length=30)
         user_doc.save(ignore_permissions=True)
         frappe.db.commit()
-        api_key = user_doc.api_key
-        api_secret = user_doc.get_password("api_secret")
-
-    data = {
-        "user": user,
-        "full_name": user_doc.full_name,
-        "token": f"token {api_key}:{api_secret}"
-    }
-
-    gen_response(200, 0, _("Login successful"), data)
+        api_key = user_doc.get("api_key")
+    
+    api_secret = user_doc.get_password("api_secret")
+    
+    return f"token {api_key}:{api_secret}"
 # ================================================================================
 @frappe.whitelist()
 def check_in(gate: str, checkin_by: str, qr_code: str = None, invitee_id: str = None):
@@ -178,7 +181,7 @@ def get_invitees(occasion, rsvp_status=None, search=None, page=1, page_size=10):
         sql = f"""
             SELECT 
                 name, full_name, whatsapp_number, occasion, occasion_name, 
-                rsvp_status, party_size 
+                rsvp_status, party_size, checkin_count 
             FROM `tabOccasion Invitee`
             WHERE {where_clause}
             LIMIT %s OFFSET %s
