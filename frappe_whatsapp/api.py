@@ -3,11 +3,11 @@ from frappe import _
 from frappe.utils import now
 from frappe.auth import LoginManager
 
-def gen_response(status_code, error, message, data=None, pagination=None):
+def gen_response(status_code, error, message, data, pagination=None):
     frappe.response["status_code"] = status_code
     frappe.response["error"] = error
     frappe.response["message"] = str(message)
-    frappe.response["data"] = data or {}
+    frappe.response["data"] = data
     if pagination is not None:
         frappe.response["pagination"] = pagination
 # ================================================================================
@@ -29,7 +29,7 @@ def login(email: str, password: str) -> None:
             }
             gen_response(200, 0, _("Login successful"), data)
     except Exception: 
-        gen_response(401, 1, _("Invalid email or password"))     
+        gen_response(401, 1, _("Invalid email or password"), {})     
 # ================================================================================
 def generate_key(user):
     user_doc = frappe.get_doc("User", user)
@@ -60,7 +60,7 @@ def check_in(gate: str, checkin_by: str, qr_code: str = None, invitee_id: str = 
         gate_doc = frappe.db.get_value("Occasion Gate Checkin", gate, ["name", "active"], as_dict=True)
         if not gate_doc or not gate_doc.active:
             log_checkin(invitee_id, gate, qr_code or invitee_id, checkin_by, "Invalid")
-            gen_response(400, 1, _("Gate is inactive or not found"))
+            gen_response(400, 1, _("Gate is inactive or not found"), [])
             return
 
     # Lookup invitee
@@ -82,12 +82,12 @@ def check_in(gate: str, checkin_by: str, qr_code: str = None, invitee_id: str = 
 
     if not invitee:
         log_checkin(None, gate, qr_code or invitee_id, checkin_by, "Invalid")
-        gen_response(404, 1, _("Invitee not recognized"))
+        gen_response(404, 1, _("Invitee not recognized"), [])
         return
 
     if invitee.rsvp_status != "Confirmed":
         log_checkin(invitee.name, gate, qr_code or invitee.name, checkin_by, "Invalid")
-        gen_response(403, 1, _("Invitee not confirmed"))
+        gen_response(403, 1, _("Invitee not confirmed"), [])
         return
 
     try:
@@ -101,7 +101,7 @@ def check_in(gate: str, checkin_by: str, qr_code: str = None, invitee_id: str = 
 
         if row.checkin_count >= row.party_size:
             log_checkin(invitee.name, gate, qr_code or invitee.name, checkin_by, "Duplicate")
-            gen_response(409, 1, _("Already checked in"))
+            gen_response(409, 1, _("Already checked in"), [])
             return
 
         # Increment check-in count
@@ -124,7 +124,7 @@ def check_in(gate: str, checkin_by: str, qr_code: str = None, invitee_id: str = 
 
     except Exception as e:
         frappe.db.rollback()
-        gen_response(500, 1, _("Internal server error: {0}").format(str(e)))
+        gen_response(500, 1, _("Internal server error: {0}").format(str(e)), [])
 # ================================================================================
 def log_checkin(invitee, gate, qr_code, checkin_by, status):
     frappe.get_doc({
@@ -203,5 +203,23 @@ def get_invitees(occasion, rsvp_status=None, search=None, page=1, page_size=10):
 
     except Exception as e:
         frappe.db.rollback()
-        gen_response(500, 1, _("Internal server error: {0}").format(str(e)))
+        gen_response(500, 1, _("Internal server error: {0}").format(str(e)), [])
+# ================================================================================
+@frappe.whitelist()
+def get_invitee_details(invitee_id):    
+    try:
+
+        invitee_details = frappe.db.get_value("Occasion Invitee", {"name": invitee_id}, [
+            "name", "full_name", "whatsapp_number", "occasion", "occasion_name", 
+                "rsvp_status", "party_size", "checkin_count"
+        ], as_dict = 1)        
+
+        gen_response(
+            200,
+            0,
+            _("Invitee details fetched successfully"),
+            invitee_details           
+        )
+    except Exception as e:
+        gen_response(500, 1, _("Internal server error: {0}").format(str(e)), [])
 # ================================================================================
