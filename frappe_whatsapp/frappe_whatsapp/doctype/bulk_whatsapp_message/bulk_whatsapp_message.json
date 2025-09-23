@@ -91,8 +91,7 @@
    "fieldname": "template",
    "fieldtype": "Link",
    "label": "Template",
-   "options": "WhatsApp Templates",
-   "read_only": 1
+   "options": "WhatsApp Templates"
   },
   {
    "depends_on": "eval:doc.use_template==1",
@@ -155,9 +154,9 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-28 13:05:56.613084",
+ "modified": "2025-09-18 11:25:41.910448",
  "modified_by": "Administrator",
- "module": "Frappe Whatsapp",
+ "module": "Frappe WhatsApp",
  "name": "Bulk WhatsApp Message",
  "owner": "Administrator",
  "permissions": [
