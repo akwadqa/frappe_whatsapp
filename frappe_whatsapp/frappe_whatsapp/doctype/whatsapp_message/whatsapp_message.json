@@ -38,7 +38,9 @@
   "reference_doctype",
   "bulk_message_reference",
   "column_break_efrb",
-  "reference_name"
+  "reference_name",
+  "context_message_id",
+  "reaction_emoji"
  ],
  "fields": [
   {
@@ -243,13 +245,23 @@
    "fieldname": "location_address",
    "fieldtype": "Data",
    "label": "Location Address"
+  },
+  {
+   "fieldname": "context_message_id",
+   "fieldtype": "Data",
+   "label": "Context Message Id"
+  },
+  {
+   "fieldname": "reaction_emoji",
+   "fieldtype": "Data",
+   "label": "Reaction Emoji"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-09-13 15:13:36.398980",
+ "modified": "2025-09-21 14:51:26.516600",
  "modified_by": "Administrator",
- "module": "Frappe WhatsApp",
+ "module": "Frappe Whatsapp",
  "name": "WhatsApp Message",
  "owner": "Administrator",
  "permissions": [
