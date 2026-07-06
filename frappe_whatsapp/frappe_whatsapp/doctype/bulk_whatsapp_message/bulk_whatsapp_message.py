@@ -4,7 +4,8 @@
 import frappe
 from frappe import _
 import json
-from frappe.utils import cint, get_datetime, now
+import time
+from frappe.utils import cint
 from frappe.model.document import Document
 from frappe.model.naming import make_autoname
 
@@ -13,6 +14,9 @@ from frappe.model.naming import make_autoname
 # 1. First, create a new DocType for Bulk WhatsApp Messaging
 # Save this as a Python file in your app's folder: 
 # frappe_whatsapp/frappe_whatsapp/doctype/bulk_whatsapp_message/bulk_whatsapp_message.py
+
+BATCH_SIZE = 200
+THROTTLE_DELAY = 0.03  # 30ms
 
 class BulkWhatsAppMessage(Document):
     def autoname(self):
@@ -32,128 +36,178 @@ class BulkWhatsAppMessage(Document):
         
         # If recipient list is provided, count recipients
         if self.recipient_type == 'Recipient List' and self.recipient_list:
-            recipient_count = frappe.db.count("WhatsApp Recipient", {"parent": self.recipient_list})
-            if recipient_count == 0:
+            count = frappe.db.count(
+                "WhatsApp Recipient",
+                {"parent": self.recipient_list}
+            )
+
+            if count == 0:
                 frappe.throw(_("Selected recipient list has no recipients"))
-            self.recipient_count = recipient_count
+
+            self.recipient_count = count
         # If individual recipients are provided
         elif self.recipients:
             self.recipient_count = len(self.recipients)
     
     def on_submit(self):
-        self.db_set("status", "Queued")
-        self.queue_messages()
-    
-    def queue_messages(self):
-        """Queue messages for sending"""
-        if self.recipient_type == 'Recipient List' and self.recipient_list:
-            # Fetch recipients from the recipient list
-            recipients = frappe.get_all(
-                "WhatsApp Recipient", 
-                filters={"parent": self.recipient_list},
-                fields=["customer", "mobile_number", "name", "recipient_name", "recipient_data"]
+        self.db_set({"status": "Queued", "sent_count": 0})
+        self.queue_batches()
+
+    #### Sending Logic ####
+    def queue_batches(self):
+        recipients = self.get_all_recipients()
+
+        for i in range(0, len(recipients), BATCH_SIZE):
+            batch = recipients[i:i + BATCH_SIZE]
+            frappe.enqueue_doc(
+                self.doctype,
+                self.name,
+                "process_batch",
+                queue="Long",
+                timeout=600,
+                recipients=batch
             )
-            
-            for recipient in recipients:
-                frappe.enqueue_doc(
-                    self.doctype, self.name,
-                    "create_single_message",
-                    "long", 4000,
-                    recipient=recipient
-                )
-        else:
-            # Use recipients from the current document
-            for recipient in self.recipients:
-                frappe.enqueue_doc(
-                    self.doctype, self.name,
-                    "create_single_message",
-                    "long", 4000,
-                    recipient=recipient
-                )
     
-    def create_single_message(self, recipient):
-        """Create a single message in the queue"""
-        # message_content = self.message_content
+    def get_all_recipients(self):
+        if self.recipient_type == 'Recipient List':
+            return frappe.get_all(
+                "WhatsApp Recipient",
+                filters={"parent": self.recipient_list},
+                fields=["customer", "mobile_number", "recipient_data"]
+            )
+        else:
+            return self.recipients
+
+    def process_batch(self, recipients):
+        success = 0
+        failed = 0
         
-        # Replace variables in the message if any
-        self.status == "In Progress"
-        if recipient.get("recipient_data"):
+        for r in recipients:
             try:
-                variables = json.loads(recipient.get("recipient_data", "{}"))
-                # for var_name, var_value in variables.items():
-                #     message_content = message_content.replace(f"{{{{{var_name}}}}}", str(var_value))
-            except Exception as e:
-                frappe.log_error(f"Error parsing recipient data: {str(e)}", "WhatsApp Bulk Messaging")
+                self.create_message_record(r)
+                success += 1
+            except Exception:
+                frappe.log_error("Bulk WhatsApp Batch Error", frappe.get_traceback())
+                failed += 1
+
+            time.sleep(THROTTLE_DELAY)
+
+        frappe.db.sql("""
+            UPDATE `tabBulk Whatsapp Message`
+            SET sent_count = sent_count + %s,
+            WHERE name = %s
+            """, (success, self.name))
         
-        # Create WhatsApp message
+        self.update_status()
+    
+    def create_message_record(self, recipient):
         wa_message = frappe.new_doc("WhatsApp Message")
-        # wa_message.from_number = self.from_number
         wa_message.to = recipient.get("mobile_number")
         wa_message.message_type = "Text"
-        # wa_message.message = message_content
-        wa_message.flags.custom_ref_doc = json.loads(recipient.get("recipient_data", "{}"))
+        wa_message.status = "Queued"
         wa_message.bulk_message_reference = self.name
         wa_message.reference_doctype = "Customer"
-        qa_message.reference_name = recipient.get("customer")
+        wa_message.reference_name = recipient.get("customer")
+
         if self.whatsapp_account:
             wa_message.whatsapp_account = self.whatsapp_account
+
+        if recipient.get("recipient_data"):
+            try:
+                wa_message.flags.custom_ref_doc = json.loads(
+                    recipient.get("recipient_data", "{}")
+                )
+            except Exception:
+                pass
         
-        # If template is being used
         if self.use_template:
             wa_message.template = self.template
-            wa_message.message_type = 'Template'
-            wa_message.use_template = self.use_template
-            # Handle template variables if needed
+            wa_message.use_template = 1
+            wa_message.message_type = "Template"
 
-            # handle MPM action JSON if product IDs and catalog ID are provided
-            mpm_action = self.get_mpm_action_json()
+        mpm_action = self.get_mpm_action_json()
             if mpm_action:
-                # We store the action JSON so the outgoing API call can find it
                 wa_message.product_catalog_json = json.dumps(mpm_action)
-
-            if recipient.get("recipient_data") and self.variable_type=='Unique':
-                wa_message.body_param = recipient.get("recipient_data")
-            elif self.template_variables and self.variable_type=='Common':
-                wa_message.body_param = self.template_variables
-            if self.attach:
-                wa_message.attach = self.attach
         
-        # Set status to queued
-        wa_message.status = "Queued"
-        try:
-            wa_message.insert(ignore_permissions=True)
-        except Exception:
-            self.db_set("status", "Partially Failed")
-        # Update message count
-        self.db_set("sent_count", cint(self.sent_count) + 1)
-        if self.recipient_count == self.sent_count:
-            self.db_set("status", "Completed")
+        if recipient.get("recipient_data") and self.variable_type == "Unique":
+                wa_message.body_param = recipient.get("recipient_data")
+            elif self.template_variables and self.variable_type == "Common":
+                wa_message.body_param = self.template_variables
+        
+        if self.attach:
+            wa_message.attach = self.attach
+        
+        wa_message.insert(ignore_permissions=True)
 
+    def update_status(self):
+        total = self.recipient_count
+        sent = frappe.db.count("WhatsApp Message", {
+            "bulk_message_reference": self.name,
+            "status": ["in", ["sent", "delivered", "read", "Success"]],
+        })
+        failed = frappe.db.count("WhatsApp Message", {
+            "bulk_message_reference": self.name,
+            "status": "Failed",
+        })
+        queued = frappe.db.count("WhatsApp Message", {
+            "bulk_message_reference": self.name,
+            "status": "Queued",
+        })
+
+        if queued > 0:
+            status = "In Progress"
+        elif failed > 0 and sent > 0:
+            status = "Partially Failed"
+        elif failed == total:
+            status = "Failed"
+        else:
+            status = "Completed"
+
+        self.db_set("status", status)
+
+    # def queue_messages(self):
+    #     """Queue messages for sending"""
+    #     if self.recipient_type == 'Recipient List' and self.recipient_list:
+    #         # Fetch recipients from the recipient list
+    #         recipients = frappe.get_all(
+    #             "WhatsApp Recipient", 
+    #             filters={"parent": self.recipient_list},
+    #             fields=["customer", "mobile_number", "name", "recipient_name", "recipient_data"]
+    #         )
+            
+    #         for recipient in recipients:
+    #             frappe.enqueue_doc(
+    #                 self.doctype, self.name,
+    #                 "create_single_message",
+    #                 "long", 4000,
+    #                 recipient=recipient
+    #             )
+    #     else:
+    #         # Use recipients from the current document
+    #         for recipient in self.recipients:
+    #             frappe.enqueue_doc(
+    #                 self.doctype, self.name,
+    #                 "create_single_message",
+    #                 "long", 4000,
+    #                 recipient=recipient
+    #             )
+    
+    #### RETRY LOGIC ####
     def retry_failed(self):
-        """Retry failed messages by re-sending to Meta.
-
-        The original send lives in WhatsAppMessage.before_insert, which only
-        fires on first creation. For an existing Failed row we call
-        send_outgoing() explicitly — queued on the "long" worker the same
-        way queue_messages does, so large batches don't block the request.
-        """
         failed_messages = frappe.get_all(
             "WhatsApp Message",
-            filters={
-                "bulk_message_reference": self.name,
-                "status": "Failed"
-            },
-            fields=["name"]
+            filters={"bulk_message_reference": self.name, "status": "Failed"},
+            fields=["name"],
         )
-
         for msg in failed_messages:
             frappe.enqueue_doc(
-                self.doctype, self.name,
+                self.doctype,
+                self.name,
                 "resend_single_message",
-                "long", 4000,
+                "long",
+                4000,
                 message_name=msg.name,
             )
-
         frappe.msgprint(_("{0} message(s) requeued for sending").format(len(failed_messages)))
 
     def resend_single_message(self, message_name):
@@ -175,8 +229,8 @@ class BulkWhatsAppMessage(Document):
                 title=f"WhatsApp bulk retry failed: {message_doc.name}"
             )
         
+    #### Progress Track ####
     def get_progress(self):
-        """Get sending progress for this bulk message"""
         total = self.recipient_count
         sent = frappe.db.count("WhatsApp Message", {
             "bulk_message_reference": self.name,
@@ -199,6 +253,7 @@ class BulkWhatsAppMessage(Document):
             "percent": (sent / total * 100) if total else 0
         }
 
+    #### MPM ACTION ####
     def get_mpm_action_json(self):
         """Constructs the Meta 'action' JSON by fetching Catalog ID from the Account"""
         if not self.whatsapp_account or not self.thumbnail_product_retailer_id or not self.product_ids:
