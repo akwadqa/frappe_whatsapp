@@ -14,7 +14,7 @@ class WhatsAppRecipientList(Document):
 			if not self.recipients:
 				frappe.throw(_("At least one recipient is required"))
 	
-	def import_list_from_doctype(self, doctype, mobile_field, name_field=None, filters=None, limit=None, data_fields=None):
+	def import_list_from_doctype(self, doctype, mobile_field, customer=None, name_field=None, filters=None, limit=None, data_fields=None):
 		"""Import recipients from another DocType"""
 		self.doctype_to_import = doctype
 		self.mobile_field = mobile_field
@@ -26,6 +26,8 @@ class WhatsAppRecipientList(Document):
 			self.import_limit = limit
 
 		fields = [mobile_field]
+		if customer:
+			fields.insert(0, customer)
 		if name_field:
 			fields.append(name_field)
 		if data_fields:
@@ -68,6 +70,7 @@ class WhatsAppRecipientList(Document):
 
 				
 			recipient = {
+				"customer": record.get(customer) if customer and record.get("customer")
 				"mobile_number": mobile,
 				"recipient_data": json.dumps(recipient_data)
 			}
