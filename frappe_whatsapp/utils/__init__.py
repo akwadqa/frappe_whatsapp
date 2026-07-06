@@ -2,11 +2,14 @@
 import frappe
 
 from frappe.core.doctype.server_script.server_script_utils import EVENT_MAP
+from frappe.utils import cast
 
+# Extend EVENT_MAP for Value Change
+WA_EVENT_MAP = {**EVENT_MAP, "on_change": "Value Change"}
 
 def run_server_script_for_doc_event(doc, event):
     """Run on each event."""
-    if event not in EVENT_MAP:
+    if event not in WA_EVENT_MAP:
         return
 
     if frappe.flags.in_install:
@@ -18,14 +21,47 @@ def run_server_script_for_doc_event(doc, event):
     if frappe.flags.in_uninstall:
         return
 
-    notification = get_notifications_map().get(
-        doc.doctype, {}
-    ).get(EVENT_MAP[event], None)
+    if not frappe.db.table_exists(doc.doctype):
+        return
+        
+    mapped_event = WA_EVENT_MAP[event]
 
-    if notification:
-        # run all scripts for this doctype + event
-        for notification_name in notification:
+    notification_names = get_notifications_map().get(
+        doc.doctype, {}
+    ).get(mapped_event, None)
+
+    if notification_names:
+        for notification_name in notification_names:
+            if mapped_event == "Value Change":
+                if not _has_value_changed(doc, notification_name):
+                    continue
             _schedule_whatsapp_notification(notification_name, doc)
+
+
+def _has_value_changed(doc, notification_name):
+    """Check if the tracked field actually changed value."""
+    
+    if doc.is_new():
+        return False
+
+    alert = frappe.get_doc("WhatsApp Notification", notification_name)
+    if not alert.value_changed:
+        return False
+
+    if not frappe.db.has_column(doc.doctype, alert.value_changed):
+        alert.db_set("disabled", 1)
+        frappe.log_error(
+            title=f"WhatsApp Notification {alert.name} disabled: missing field {alert.value_changed}"
+        )
+        return False
+
+    doc_before_save = doc.get_doc_before_save()
+    old_value = doc_before_save.get(alert.value_changed) if doc_before_save else None
+    new_value = doc.get(alert.value_changed)
+
+    fieldtype = doc.meta.get_field(alert.value_changed).fieldtype
+    return cast(fieldtype, new_value) != cast(fieldtype, old_value)
+
 
 
 def _schedule_whatsapp_notification(notification_name, doc):

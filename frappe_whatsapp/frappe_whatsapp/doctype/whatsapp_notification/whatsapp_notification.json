@@ -13,6 +13,7 @@
   "field_name",
   "event_frequency",
   "doctype_event",
+  "value_changed",
   "days_in_advance",
   "date_changed",
   "column_break_3",
@@ -61,7 +62,13 @@
    "fieldname": "doctype_event",
    "fieldtype": "Select",
    "label": "DocType Event",
-   "options": "Before Insert\nBefore Validate\nBefore Save\nAfter Insert\nAfter Save\nBefore Submit\nAfter Submit\nBefore Cancel\nAfter Cancel\nBefore Delete\nAfter Delete\nBefore Save (Submitted Document)\nAfter Save (Submitted Document)\nDays After\nDays Before"
+   "options": "Before Insert\nBefore Validate\nBefore Save\nAfter Insert\nAfter Save\nBefore Submit\nAfter Submit\nBefore Cancel\nAfter Cancel\nBefore Delete\nAfter Delete\nBefore Save (Submitted Document)\nAfter Save (Submitted Document)\nDays After\nDays Before\nValue Change"
+  },
+  {
+   "depends_on": "eval:doc.doctype_event==\"Value Change\"",
+   "fieldname": "value_changed",
+   "fieldtype": "Select",
+   "label": "Value Changed"
   },
   {
    "fieldname": "column_break_3",
@@ -229,7 +236,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-27 18:34:22.530859",
+ "modified": "2026-06-29 13:43:00.000000",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Notification",

@@ -1,5 +1,6 @@
 """Notification."""
 
+import re
 import json
 import frappe
 
@@ -11,7 +12,7 @@ from frappe.desk.form.utils import get_pdf_link
 from frappe.utils import add_to_date, nowdate, datetime
 
 from frappe_whatsapp.utils import get_whatsapp_account
-
+from frappe_whatsapp.document_utils import get_value_from_childtable
 
 class WhatsAppNotification(Document):
     """Notification."""
@@ -41,6 +42,9 @@ class WhatsAppNotification(Document):
                     self.set_property_after_alert,
                     self.reference_doctype,
                 ))
+
+        if self.doctype_event == "Value Change" and not self.value_changed:
+            frappe.throw(_("Please specify which value field must be checked"))
 
 
     def send_scheduled_message(self) -> dict:
@@ -125,17 +129,25 @@ class WhatsAppNotification(Document):
             if self.fields:
                 parameters = []
                 for field in self.fields:
+                    fieldname = field.field_name
+                    value = None
+
                     if isinstance(doc, Document):
-                        # get field with prettier value.
-                        value = doc.get_formatted(field.field_name)
-                    else: 
-                        value = doc_data[field.field_name]
-                        if isinstance(doc_data[field.field_name], (datetime.date, datetime.datetime)):
-                            value = str(doc_data[field.field_name])
+                        if re.search(r'\[\d+\]\.', fieldname):
+                            value = get_value_from_childtable(doc, fieldname)
+                        else:
+                            value = doc.get_formatted(fieldname)
+                    else:
+                        if re.search(r'\[\d+\]\.', fieldname):
+                            value = get_value_from_childtable(doc_data, fieldname)
+                        else:
+                            value = doc_data.get(fieldname)
+                        if isinstance(value, (datetime.date, datetime.datetime)):
+                            value = str(value)
 
                     parameters.append({
                         "type": "text",
-                        "text": value
+                        "text": value or ""
                     })
 
                 data['template']["components"] = [{
@@ -389,7 +401,7 @@ def call_trigger_notifications():
         trigger_notifications()  
     except Exception as e:
         # Log the error but do not show any popup or alert
-        frappe.log_error(frappe.get_traceback(), "Error in call_trigger_notifications")
+        frappe.log_error("Error in call_trigger_notifications", frappe.get_traceback())
         # Optionally, you could raise the exception to be handled elsewhere if needed
         raise e
 
