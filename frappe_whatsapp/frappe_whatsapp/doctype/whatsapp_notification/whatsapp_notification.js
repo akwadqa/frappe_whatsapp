@@ -75,6 +75,11 @@ frappe.ui.form.on('WhatsApp Notification', {
 		frm.trigger("load_template")
 		frappe.notification.setup_fieldname_select(frm);
 		frappe.notification.setup_alerts_button(frm);
+		frm.set_query("template", function () {
+            return {
+                filters: { status: "APPROVED" },
+			};
+		});
 	},
 	template: function(frm){
 		frm.trigger("load_template")

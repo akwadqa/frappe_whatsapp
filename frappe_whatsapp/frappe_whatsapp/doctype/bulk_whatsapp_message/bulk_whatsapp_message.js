@@ -1,5 +1,11 @@
 frappe.ui.form.on('Bulk WhatsApp Message', {
     refresh: function(frm) {
+        frm.set_query("template", function () {
+            return {
+                filters: { status: "APPROVED" },
+            };
+        });
+        
         // Add progress bar
         if(frm.doc.docstatus === 1 && frm.doc.status != 'Draft') {
             frm.add_custom_button(__('Check Progress'), function() {
