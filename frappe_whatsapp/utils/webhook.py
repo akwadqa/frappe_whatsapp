@@ -41,7 +41,7 @@ def post():
 	frappe.get_doc({
 		"doctype": "WhatsApp Notification Log",
 		"template": "Webhook",
-		"meta_data": json.dumps(data)
+		"meta_data": frappe.as_json(data)
 	}).insert(ignore_permissions=True)
 
 	messages = []
@@ -74,6 +74,8 @@ def post():
 
 	if messages:
 		for message in messages:
+			if frappe.db.exists("WhatsApp Message", {"message_id": message['id']}):
+    			continue
 			message_type = message['type']
 			is_reply = True if message.get('context') and 'forwarded' not in message.get('context') else False
 			reply_to_message_id = message['context']['id'] if is_reply else None
@@ -192,11 +194,14 @@ def post():
 					"whatsapp_account": whatsapp_account.name,
 					"product_catalog_json": json.dumps(order_data)
 				}).insert(ignore_permissions=True)
-			elif message_type in ["image", "audio", "video", "document"]:
+			elif message_type in ["image", "sticker", "audio", "video", "document"]:
 				token = whatsapp_account.get_password("token")
 				url = f"{whatsapp_account.url}/{whatsapp_account.version}/"
 
 				media_id = message[message_type]["id"]
+				file_name = message.get(message_type).get("filename")
+				caption = message.get(message_type).get("caption")
+
 				headers = {
 					'Authorization': 'Bearer ' + token
 
@@ -213,7 +218,9 @@ def post():
 					if media_response.status_code == 200:
 
 						file_data = media_response.content
-						file_name = f"{frappe.generate_hash(length=10)}.{file_extension}"
+						file_name = message.get(message_type, {}).get("filename")
+						if not file_name:
+							file_name = f"{frappe.generate_hash(length=10)}.{file_extension}"
 
 						message_doc = frappe.get_doc({
 							"doctype": "WhatsApp Message",
@@ -222,9 +229,10 @@ def post():
 							"message_id": message['id'],
 							"reply_to_message_id": reply_to_message_id,
 							"is_reply": is_reply,
-							"message": message[message_type].get("caption", ""),
+							"message": f"/files/{file_name}",
 							"content_type" : message_type,
 							"profile_name":sender_profile_name,
+							"caption": caption,
 							"whatsapp_account":whatsapp_account.name
 						}).insert(ignore_permissions=True)
 
@@ -302,6 +310,12 @@ def update_message_status(data):
 
 	doc = frappe.get_doc("WhatsApp Message", name)
 	doc.status = status
-	if conversation:
-		doc.conversation_id = conversation
-	doc.save(ignore_permissions=True)
+    frappe.db.set_value(
+        "WhatsApp Message",
+        name,
+        {
+            "status": status,
+            "conversation_id": conversation
+        },
+        update_modified=False
+	)
