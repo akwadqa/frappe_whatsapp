@@ -70,7 +70,7 @@ class WhatsAppRecipientList(Document):
 
 				
 			recipient = {
-				"customer": record.get(customer) if customer and record.get("customer")
+				"customer": record.get(customer) if customer and record.get("customer"),
 				"mobile_number": mobile,
 				"recipient_data": json.dumps(recipient_data)
 			}

@@ -94,7 +94,7 @@ class BulkWhatsAppMessage(Document):
 
         frappe.db.sql("""
             UPDATE `tabBulk Whatsapp Message`
-            SET sent_count = sent_count + %s,
+            SET sent_count = sent_count + %s
             WHERE name = %s
             """, (success, self.name))
         
@@ -126,8 +126,8 @@ class BulkWhatsAppMessage(Document):
             wa_message.message_type = "Template"
 
         mpm_action = self.get_mpm_action_json()
-            if mpm_action:
-                wa_message.product_catalog_json = json.dumps(mpm_action)
+        if mpm_action:
+            wa_message.product_catalog_json = json.dumps(mpm_action)
         
         if recipient.get("recipient_data") and self.variable_type == "Unique":
                 wa_message.body_param = recipient.get("recipient_data")
@@ -164,33 +164,6 @@ class BulkWhatsAppMessage(Document):
             status = "Completed"
 
         self.db_set("status", status)
-
-    # def queue_messages(self):
-    #     """Queue messages for sending"""
-    #     if self.recipient_type == 'Recipient List' and self.recipient_list:
-    #         # Fetch recipients from the recipient list
-    #         recipients = frappe.get_all(
-    #             "WhatsApp Recipient", 
-    #             filters={"parent": self.recipient_list},
-    #             fields=["customer", "mobile_number", "name", "recipient_name", "recipient_data"]
-    #         )
-            
-    #         for recipient in recipients:
-    #             frappe.enqueue_doc(
-    #                 self.doctype, self.name,
-    #                 "create_single_message",
-    #                 "long", 4000,
-    #                 recipient=recipient
-    #             )
-    #     else:
-    #         # Use recipients from the current document
-    #         for recipient in self.recipients:
-    #             frappe.enqueue_doc(
-    #                 self.doctype, self.name,
-    #                 "create_single_message",
-    #                 "long", 4000,
-    #                 recipient=recipient
-    #             )
     
     #### RETRY LOGIC ####
     def retry_failed(self):

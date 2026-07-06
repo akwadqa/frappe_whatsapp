@@ -87,7 +87,7 @@ class WhatsAppMessage(Document):
             data = {
                 "messaging_product": "whatsapp",
                 "to": format_number(self.to),
-                "type": "document" if ext and ext == ".webm" else self.content_typeself.content_type,
+                "type": "document" if ext and ext == ".webm" else self.content_type,
             }
             if self.is_reply and self.reply_to_message_id:
                 data["context"] = {"message_id": self.reply_to_message_id}
