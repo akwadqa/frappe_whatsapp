@@ -47,6 +47,7 @@
    "label": "Recipients"
   },
   {
+    "allow_bulk_edit": 1,
    "fieldname": "recipients",
    "fieldtype": "Table",
    "label": "Recipients",
@@ -170,9 +171,11 @@
    "options": "JSON"
   }
  ],
+ "grid_page_length": 50,
+ "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-30 12:36:13.610865",
+ "modified": "2026-07-06 14:51:13.610865",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Recipient List",
@@ -204,6 +207,8 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_Search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
