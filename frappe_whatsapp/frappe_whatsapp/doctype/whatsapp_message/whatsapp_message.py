@@ -1,6 +1,8 @@
 # Copyright (c) 2022, Shridhar Patil and contributors
 # For license information, please see license.txt
 import json
+import os
+
 import frappe
 from frappe import _, throw
 from frappe.model.document import Document
@@ -71,9 +73,13 @@ class WhatsAppMessage(Document):
         """
         if self.type != "Outgoing":
             return
+        
+        file_name = ext = None
 
         if self.message_type != "Template":
             if self.attach and not self.attach.startswith("http"):
+                _base, ext = os.path.splitext(self.attach)
+                file_name = _base.split("/")[2]
                 link = frappe.utils.get_url() + "/" + self.attach
             else:
                 link = self.attach
@@ -81,7 +87,7 @@ class WhatsAppMessage(Document):
             data = {
                 "messaging_product": "whatsapp",
                 "to": format_number(self.to),
-                "type": self.content_type,
+                "type": "document" if ext and ext == ".webm" else self.content_typeself.content_type,
             }
             if self.is_reply and self.reply_to_message_id:
                 data["context"] = {"message_id": self.reply_to_message_id}
@@ -90,6 +96,10 @@ class WhatsAppMessage(Document):
                     "link": link,
                     "caption": self.message,
                 }
+
+                if self.content_type == "document":
+                    data["document"]["filename"] = file_name
+
             elif self.content_type == "reaction":
                 data["reaction"] = {
                     "message_id": self.reply_to_message_id,
@@ -98,8 +108,11 @@ class WhatsAppMessage(Document):
             elif self.content_type == "text":
                 data["text"] = {"preview_url": True, "body": self.message}
 
-            elif self.content_type == "audio":
-                data["audio"] = {"link": link}
+            elif self.content_type == "audio":                
+                if ext and ext == ".webm":
+                    data["document"] = {"link": link}
+                else:
+                    data["audio"] = {"link": link}
 
             elif self.content_type == "interactive":
                 # Interactive message (buttons or list)
@@ -356,7 +369,17 @@ class WhatsAppMessage(Document):
                 headers=headers,
                 data=json.dumps(data),
             )
-            self.message_id = response["messages"][0]["id"]
+            self.db_set("message_id", response["messages"][0]["id"])
+            frappe.publish_realtime(
+                self.to,
+                {
+                    "type": self.type,
+                    "message_id": self.message_id,
+                    "local_message_id": self.local_message_id,
+                    "content": self.message or self.attach,
+                    "caption": self.caption
+                }
+            )
 
         except Exception as e:
             res = frappe.flags.integration_request.json().get("error", {})
