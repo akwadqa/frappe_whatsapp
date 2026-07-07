@@ -15,11 +15,18 @@ def get_custom_fields():
     return {
         "Customer": [
             {
+                "fieldname": "customer_whatsapp_user",
+                "fieldtype": "Link",
+                "label": _("WhatsApp User"),
+                "insert_after": "customer_name",
+                "options": "WhatsApp User",
+            },
+            {
                 "fieldname": "custom_mobile_no",
                 "fieldtype": "Data",
                 "label": _("Mobile No"),
-                "insert_after": "customer_name",
-                "fetch_from": "akd_user.mobile_no",
+                "insert_after": "customer_whatsapp_user",
+                "fetch_from": "customer_whatsapp_user.mobile_no",
                 "read_only": 1,
             },
         ],

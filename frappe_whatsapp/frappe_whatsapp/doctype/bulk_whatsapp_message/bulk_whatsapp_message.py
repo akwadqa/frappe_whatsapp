@@ -130,9 +130,9 @@ class BulkWhatsAppMessage(Document):
             wa_message.product_catalog_json = json.dumps(mpm_action)
         
         if recipient.get("recipient_data") and self.variable_type == "Unique":
-                wa_message.body_param = recipient.get("recipient_data")
-            elif self.template_variables and self.variable_type == "Common":
-                wa_message.body_param = self.template_variables
+            wa_message.body_param = recipient.get("recipient_data")
+        elif self.template_variables and self.variable_type == "Common":
+            wa_message.body_param = self.template_variables
         
         if self.attach:
             wa_message.attach = self.attach
