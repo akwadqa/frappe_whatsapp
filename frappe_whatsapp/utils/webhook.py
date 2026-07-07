@@ -75,7 +75,7 @@ def post():
 	if messages:
 		for message in messages:
 			if frappe.db.exists("WhatsApp Message", {"message_id": message['id']}):
-    			continue
+				continue
 			message_type = message['type']
 			is_reply = True if message.get('context') and 'forwarded' not in message.get('context') else False
 			reply_to_message_id = message['context']['id'] if is_reply else None
@@ -310,7 +310,7 @@ def update_message_status(data):
 
 	doc = frappe.get_doc("WhatsApp Message", name)
 	doc.status = status
-    frappe.db.set_value(
+	frappe.db.set_value(
         "WhatsApp Message",
         name,
         {

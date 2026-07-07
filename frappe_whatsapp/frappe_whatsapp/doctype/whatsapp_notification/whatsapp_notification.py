@@ -12,7 +12,7 @@ from frappe.desk.form.utils import get_pdf_link
 from frappe.utils import add_to_date, nowdate, datetime
 
 from frappe_whatsapp.utils import get_whatsapp_account
-from frappe_whatsapp.document_utils import get_value_from_childtable
+from frappe_whatsapp.utils.document_utils import get_value_from_childtable
 
 class WhatsAppNotification(Document):
     """Notification."""
