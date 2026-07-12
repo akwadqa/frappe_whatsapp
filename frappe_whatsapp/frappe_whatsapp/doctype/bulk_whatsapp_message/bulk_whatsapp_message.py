@@ -63,7 +63,7 @@ class BulkWhatsAppMessage(Document):
                 self.doctype,
                 self.name,
                 "process_batch",
-                queue="Long",
+                queue="long",
                 timeout=600,
                 recipients=batch
             )
@@ -93,7 +93,7 @@ class BulkWhatsAppMessage(Document):
             time.sleep(THROTTLE_DELAY)
 
         frappe.db.sql("""
-            UPDATE `tabBulk Whatsapp Message`
+            UPDATE `tabBulk WhatsApp Message`
             SET sent_count = sent_count + %s
             WHERE name = %s
             """, (success, self.name))
@@ -103,6 +103,7 @@ class BulkWhatsAppMessage(Document):
     def create_message_record(self, recipient):
         wa_message = frappe.new_doc("WhatsApp Message")
         wa_message.to = recipient.get("mobile_number")
+        #wa_message.type = "Outgoing"
         wa_message.message_type = "Text"
         wa_message.status = "Queued"
         wa_message.bulk_message_reference = self.name
