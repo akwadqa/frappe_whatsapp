@@ -73,7 +73,7 @@ class BulkWhatsAppMessage(Document):
             return frappe.get_all(
                 "WhatsApp Recipient",
                 filters={"parent": self.recipient_list},
-                fields=["customer", "mobile_number", "recipient_data"]
+                fields=["mobile_number", "recipient_data"]
             )
         else:
             return self.recipients
@@ -107,8 +107,6 @@ class BulkWhatsAppMessage(Document):
         wa_message.message_type = "Text"
         wa_message.status = "Queued"
         wa_message.bulk_message_reference = self.name
-        wa_message.reference_doctype = "Customer"
-        wa_message.reference_name = recipient.get("customer")
 
         if self.whatsapp_account:
             wa_message.whatsapp_account = self.whatsapp_account

@@ -65,12 +65,12 @@ app_include_js = "/assets/frappe_whatsapp/js/frappe_whatsapp.js"
 # ------------
 
 # before_install = "frappe_whatsapp.install.before_install"
-after_install = "frappe_whatsapp.setup.after_install"
+# after_install = "frappe_whatsapp.install.after_install"
 
 # Uninstallation
 # ------------
 
-before_uninstall = "frappe_whatsapp.setup.before_uninstall"
+# before_uninstall = "frappe_whatsapp.uninstall.before_uninstall"
 # after_uninstall = "frappe_whatsapp.uninstall.after_uninstall"
 
 # Desk Notifications

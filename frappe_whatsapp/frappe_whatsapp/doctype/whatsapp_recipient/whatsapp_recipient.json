@@ -5,36 +5,23 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "customer",
-  "recipient_name",
   "mobile_number",
+  "recipient_name",
   "recipient_data"
  ],
  "fields": [
-   {
-   "fieldname": "customer",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Customer",
-   "options": "Customer",
-   "reqd": 1
-  },
   {
-   "fetch_from": "customer.custom_mobile_no",
    "fieldname": "mobile_number",
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Mobile Number",
-   "read_only": 1,
    "reqd": 1
   },
   {
-   "fetch_from": "customer.customer_name",
    "fieldname": "recipient_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Recipient Name",
-   "read_only": 1
+   "label": "Recipient Name"
   },
   {
    "default": "{}",

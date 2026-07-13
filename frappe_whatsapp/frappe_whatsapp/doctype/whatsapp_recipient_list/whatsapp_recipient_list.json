@@ -13,19 +13,12 @@
   "import_section",
   "import_from_doctype",
   "doctype_to_import",
-  "customer_id_field",
   "mobile_field",
   "name_field",
   "import_filters",
   "data_fields",
   "import_limit",
-  "import_button",
-  "import_recipients_section",
-  "import_recipients",
-  "select_recipients_type",
-  "days_since_last_order",
-  "registered_in_the_last_days",
-  "import_recipient_button"
+  "import_button"
  ],
  "fields": [
   {
@@ -62,42 +55,28 @@
    "default": "0",
    "fieldname": "import_from_doctype",
    "fieldtype": "Check",
-   "label": "Import From Customer DocType"
+   "label": "Import From DocType"
   },
   {
-   "default": "Customer",
    "depends_on": "eval:doc.import_from_doctype==1",
    "fieldname": "doctype_to_import",
    "fieldtype": "Link",
-   "hidden": 1,
    "label": "DocType to Import",
    "options": "DocType"
   },
   {
-   "default": "custom_mobile_no",
    "depends_on": "eval:doc.import_from_doctype==1",
    "description": "Field name containing the mobile number",
    "fieldname": "mobile_field",
    "fieldtype": "Data",
-   "hidden": 1,
    "label": "Mobile Number Field"
   },
   {
-   "default": "customer_name",
    "depends_on": "eval:doc.import_from_doctype==1",
    "description": "Field name containing the recipient name (optional)",
    "fieldname": "name_field",
    "fieldtype": "Data",
-   "hidden": 1,
-   "label": "Customer Name Field"
-  },
-   {
-   "default": "name",
-   "depends_on": "eval:doc.import_from_doctype==1",
-   "fieldname": "customer_id_field",
-   "fieldtype": "Data",
-   "hidden": 1,
-   "label": "Customer ID Field"
+   "label": "Name Field"
   },
   {
    "depends_on": "eval:doc.import_from_doctype==1",
@@ -122,52 +101,11 @@
    "label": "Import Recipients"
   },
   {
-  "fieldname": "import_recipients_section",
-  "fieldtype": "Section Break",
-  "label": "Import Recipients by Criteria"
- },
- {
-  "default": "0",
-  "fieldname": "import_recipients",
-  "fieldtype": "Check",
-  "label": "Import Recipients"
- },
- {
-  "depends_on": "eval: doc.import_recipients",
-  "fieldname": "select_recipients_type",
-  "fieldtype": "Select",
-  "label": "Select Recipients Type",
-  "options": "All Customers\nInactive Customers\nRecently Registered Customers\nCustomers Without Transactions"
- },
- {
-  "depends_on": "eval: doc.select_recipients_type == \"Inactive Customers\" && doc.import_recipients",
-  "fieldname": "days_since_last_order",
-  "fieldtype": "Int",
-  "label": "Days Since Last Order",
-  "mandatory_depends_on": "eval: doc.select_recipients_type == \"Inactive Customers\" && doc.import_recipients",
-  "non_negative": 1
- },
- {
-  "depends_on": "eval: doc.select_recipients_type == \"Recently Registered Customers\" && doc.import_recipients",
-  "fieldname": "registered_in_the_last_days",
-  "fieldtype": "Int",
-  "label": "Registered in the Last (Days)",
-  "mandatory_depends_on": "eval: doc.select_recipients_type == \"Recently Registered Customers\" && doc.import_recipients",
-  "non_negative": 1
- },
- {
-  "depends_on": "eval: doc.import_recipients",
-  "fieldname": "import_recipient_button",
-  "fieldtype": "Button",
-  "label": "Import Recipients"
-  },
-  {
    "depends_on": "eval:doc.import_from_doctype==1",
    "description": "JSON fields to apply when importing (optional) [\"full_name\", \"email\"]",
    "fieldname": "data_fields",
    "fieldtype": "Code",
    "label": "Data fields",
-   "hidden": 1,
    "options": "JSON"
   }
  ],

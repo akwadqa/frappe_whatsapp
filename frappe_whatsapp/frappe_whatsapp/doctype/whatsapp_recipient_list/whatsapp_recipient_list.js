@@ -24,7 +24,6 @@ frappe.ui.form.on("WhatsApp Recipient List", {
           list_name: frm.doc.name,
           doctype: frm.doc.doctype_to_import,
           mobile_field: frm.doc.mobile_field,
-          customer: frm.doc.customer_id_field,
           name_field: frm.doc.name_field,
           filters: filters,
           limit: frm.doc.import_limit,
@@ -41,56 +40,6 @@ frappe.ui.form.on("WhatsApp Recipient List", {
       });
     };
 
-    frm.fields_dict.import_recipient_button.onclick = function () {
-        const recipients_type = frm.doc.select_recipients_type;
-
-        if (!recipients_type) {
-            frappe.throw(__("Please select a Recipients Type"));
-            return;
-        }
-
-        if (recipients_type === "Inactive Customers") {
-            if (!frm.doc.days_since_last_order || frm.doc.days_since_last_order <= 0) {
-                frappe.msgprint(__("Please enter a positive number for Days Since Last Order."));
-                return;
-            }
-        }
-
-        if (recipients_type === "Recently Registered Customers") {
-            if (!frm.doc.registered_in_the_last_days || frm.doc.registered_in_the_last_days <= 0) {
-                frappe.msgprint(__("Please enter a positive number for Registered In The Last Days."));
-                return;
-            }
-        }
-
-        frappe.dom.freeze(__("Importing customers..."));
-
-        frappe.call({
-            method: "frappe_whatsapp.utils.bulk_messaging.get_customers_for_import",
-            args: {
-                recipients_type: frm.doc.select_recipients_type,
-                days_since_last_order: frm.doc.days_since_last_order,
-                registered_in_the_last_days: frm.doc.registered_in_the_last_days,
-            },
-            callback: function (r) {
-                if (r.message) {
-                    frm.clear_table("recipients");
-                    r.message.forEach(function (c) {
-                        frm.add_child("recipients", c);
-                    });
-                    frm.refresh_field("recipients");
-                    frappe.msgprint(__(`${r.message.length} recipients imported successfully`));
-                }
-            },
-            error: function () {
-                frappe.msgprint(__("An error occurred. Check the server logs."));
-            },
-            always: function () {
-                frappe.dom.unfreeze();
-            },
-        });
-    };
-    
     // Add a button to validate all recipients
     frm.add_custom_button(__("Validate Recipients"), function () {
       let invalid = [];
