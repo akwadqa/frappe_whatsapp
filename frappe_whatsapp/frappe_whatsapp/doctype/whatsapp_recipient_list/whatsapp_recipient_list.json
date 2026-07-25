@@ -18,7 +18,13 @@
   "import_filters",
   "data_fields",
   "import_limit",
-  "import_button"
+  "import_button",
+  "column_break_shhz",
+  "import_from_customer_doctype",
+  "select_recipients_type",
+  "days_since_last_order",
+  "registered_in_the_last_days",
+  "import_customers_button"
  ],
  "fields": [
   {
@@ -40,7 +46,7 @@
    "label": "Recipients"
   },
   {
-    "allow_bulk_edit": 1,
+   "allow_bulk_edit": 1,
    "fieldname": "recipients",
    "fieldtype": "Table",
    "label": "Recipients",
@@ -107,13 +113,54 @@
    "fieldtype": "Code",
    "label": "Data fields",
    "options": "JSON"
+  },
+  {
+   "fieldname": "column_break_shhz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval: !doc.import_from_doctype;",
+   "fieldname": "import_from_customer_doctype",
+   "fieldtype": "Check",
+   "label": "Import from Customer DocType"
+  },
+  {
+   "default": "All Customers",
+   "depends_on": "eval: doc.import_from_customer_doctype;",
+   "fieldname": "select_recipients_type",
+   "fieldtype": "Select",
+   "label": "Select Recipients Type",
+   "options": "Inactive Customers\nRecently Registered Customers\nCustomers Without Transactions\nCustomers With Previous Udhiya Orders\nUdhiya Customers & Active Customers (60 Days)\nAll Customers"
+  },
+  {
+   "depends_on": "eval: doc.import_from_customer_doctype;",
+   "fieldname": "import_customers_button",
+   "fieldtype": "Button",
+   "label": "Import Recipients"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval: doc.select_recipients_type === 'Inactive Customers';",
+   "fieldname": "days_since_last_order",
+   "fieldtype": "Int",
+   "label": "Days Since Last Order",
+   "mandatory_depends_on": "eval: doc.select_recipients_type === 'Inactive Customers';"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval: doc.select_recipients_type === 'Recently Registered Customers';",
+   "fieldname": "registered_in_the_last_days",
+   "fieldtype": "Int",
+   "label": "Registered in the Last Days",
+   "mandatory_depends_on": "eval: doc.select_recipients_type === 'Recently Registered Customers';"
   }
  ],
  "grid_page_length": 50,
  "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-06 14:51:13.610865",
+ "modified": "2026-07-23 19:08:26.837537",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Recipient List",
@@ -146,7 +193,6 @@
   }
  ],
  "row_format": "Dynamic",
- "rows_threshold_for_grid_Search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
