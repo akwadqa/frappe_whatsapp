@@ -7,8 +7,9 @@
  "engine": "InnoDB",
  "field_order": [
   "default_incoming_account",
-  "column_break_xsuw",
-  "default_outgoing_account"
+  "default_outgoing_account",
+  "column_break_skjo",
+  "whatsapp_flow_for_completed_orders"
  ],
  "fields": [
   {
@@ -26,13 +27,19 @@
   {
    "fieldname": "column_break_skjo",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "whatsapp_flow_for_completed_orders",
+   "fieldtype": "Link",
+   "label": "WhatsApp Flow for Completed Orders",
+   "options": "WhatsApp Flow"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-12-01 13:22:14.262545",
+ "modified": "2026-08-04 15:32:48.241983",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Settings",

@@ -85,10 +85,17 @@ class WhatsAppFlow(Document):
                     "TextHeading", "TextSubheading", "TextBody",
                     "TextCaption", "Image", "EmbeddedLink", "Footer"
                 ]:
-                    accumulated_fields[field.field_name] = {
-                        "type": "string",
-                        "__example__": ""
-                    }
+                    if field.field_type == "CheckboxGroup":
+                        accumulated_fields[field.field_name] = {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "__example__": []
+                        }
+                    else:
+                        accumulated_fields[field.field_name] = {
+                            "type": "string",
+                            "__example__": ""
+                        }
 
         return screen_data_map
 
@@ -108,8 +115,8 @@ class WhatsAppFlow(Document):
             screen_data["terminal"] = True
             screen_data["success"] = True
 
-        if screen.refresh_on_back:
-            screen_data["refresh_on_back"] = True
+        # if screen.refresh_on_back:
+        #     screen_data["refresh_on_back"] = True
 
         # Build fields for this screen
         children = self.build_screen_fields(screen)
@@ -197,10 +204,10 @@ class WhatsAppFlow(Document):
         if field.required:
             component["required"] = True
 
-        if field.helper_text:
+        if field.helper_text and field_type != "CheckboxGroup":
             component["helper-text"] = field.helper_text
 
-        if field.init_value:
+        if field.init_value and field_type != "CheckboxGroup":
             component["init-value"] = field.init_value
 
         # Text input specific

@@ -178,6 +178,11 @@ def post():
 							"whatsapp_account": whatsapp_account.name
 						}
 					)
+
+					# call handle_survey_response
+					msg_doc.reload()
+					handle_survey_response(msg_doc)
+
 			# NEW: Handle Shopping Cart / Orders from MPM
 			elif message_type == 'order':
 				order_data = message['order']
@@ -319,3 +324,73 @@ def update_message_status(data):
         },
         update_modified=False
 	)
+
+
+def handle_survey_response(doc):
+	try:
+		if doc.type == "Incoming" and doc.content_type == "flow" and doc.is_reply:
+			survey_message_name = frappe.db.exists("WhatsApp Message", {"message_id": doc.reply_to_message_id})
+			if not survey_message_name:
+				return
+
+			survey_message = frappe.get_doc("WhatsApp Message", survey_message_name)
+
+			survey_flow = frappe.get_doc("WhatsApp Flow", survey_message.flow)
+			screen = ""
+			index = -1
+			screen_headings = {}
+			for field in survey_flow.fields:
+				if screen != field.screen:
+					screen = field.screen
+					index += 1
+				if field.field_type == "TextHeading":
+					screen_headings[index] = field.label
+
+			fields_lookup = {}
+			screen = ""
+			index = -1
+			for field in survey_flow.fields:
+				if screen != field.screen:
+					screen = field.screen
+					index += 1
+				if field.field_type != "TextHeading":
+					fields_lookup[f"screen_{index}_{field.field_name}"] = screen_headings.get(index, field.label)
+
+			customer = frappe.db.get_value("Customer", {"custom_mobile_no": doc.get("from")}, "name")
+
+			# Initiate Survey Response Document
+			survey_doc = frappe.get_doc({
+				"doctype": "WhatsApp Survey Response",
+				"customer": customer,
+				"document_type": survey_message.reference_doctype,
+				"document_name": survey_message.reference_name,
+				"survey_message": doc.name
+			}).insert(ignore_permissions=True)
+
+			# add responses as child table items
+			responses = []
+			survey = json.loads(doc.flow_response)
+			survey.pop("flow_token", None)
+
+			for question, answer in survey.items():
+				if isinstance(answer, list):
+					answer = ", ".join(remove_index(a) for a in answer)
+				else:
+					answer = remove_index(answer)
+				responses.append({
+					"question": fields_lookup.get(question, question),
+					"answer": answer
+				})
+
+			survey_doc.set("completed_survey", responses)
+			survey_doc.save(ignore_permissions=True)
+
+	except Exception as e:
+		frappe.log_error(frappe.get_traceback(), "Error in handling survey response")
+
+
+def remove_index(value):
+	value = str(value)
+	if len(value) > 2 and value[0].isdigit() and value[1] == "_":
+		return value[2:]
+	return value

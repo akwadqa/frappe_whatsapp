@@ -1,0 +1,87 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "{{customer}}-{{sales_order}}",
+ "creation": "2026-08-03 10:23:21.562532",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "customer",
+  "survey_message",
+  "column_break_qypu",
+  "document_type",
+  "document_name",
+  "section_break_jhrz",
+  "completed_survey"
+ ],
+ "fields": [
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Customer",
+   "options": "Customer",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_qypu",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_jhrz",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "completed_survey",
+   "fieldtype": "Table",
+   "label": "Completed Survey",
+   "options": "Survey Response Content"
+  },
+  {
+   "fieldname": "document_type",
+   "fieldtype": "Link",
+   "label": "Document Type",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "document_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Document Name",
+   "options": "document_type"
+  },
+  {
+   "fieldname": "survey_message",
+   "fieldtype": "Link",
+   "label": "Survey Message",
+   "options": "WhatsApp Message"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-04 15:16:52.487477",
+ "modified_by": "Administrator",
+ "module": "Frappe Whatsapp",
+ "name": "WhatsApp Survey Response",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
