@@ -4,6 +4,7 @@
 # For license information, please see license.txt
 import json
 import frappe
+from frappe import _
 import magic
 import requests
 from frappe.model.document import Document
@@ -169,6 +170,13 @@ class WhatsAppTemplates(Document):  # nosemgrep: frappe-modifying-but-not-commit
                     b["type"] = "MPM"
                 elif btn.button_type == "Catalog":
                     b["type"] = "CATALOG"
+                elif btn.button_type == "Flow":
+                    b["type"] = "FLOW"
+                    b["flow_id"] = int(btn.flow_id) if btn.flow_id else btn.flow_id
+                    b["flow_action"] = "navigate"
+                    navigate_screen = frappe.get_doc("WhatsApp Flow", btn.flow).get_entry_screen() if btn.flow else None
+                    if navigate_screen:
+                        b["navigate_screen"] = navigate_screen
 
                 button_block["buttons"].append(b)
 
@@ -227,6 +235,13 @@ class WhatsAppTemplates(Document):  # nosemgrep: frappe-modifying-but-not-commit
                     # MPM buttons often require additional fields like catalog_id
                 elif btn.button_type == "Catalog":
                     b["type"] = "CATALOG"
+                elif btn.button_type == "Flow":
+                    b["type"] = "FLOW"
+                    b["flow_id"] = int(btn.flow_id) if btn.flow_id else btn.flow_id
+                    navigate_screen = frappe.get_doc("WhatsApp Flow", btn.flow).get_entry_screen() if btn.flow else None
+                    if navigate_screen:
+                        b["flow_action"] = "navigate"
+                        b["navigate_screen"] = navigate_screen
 
                 button_block["buttons"].append(b)
 
@@ -304,6 +319,7 @@ def fetch():
     """Fetch templates from meta."""
     """Later improve this code to pass a whatsapp account remove the js funcation so that it is called from whatsapp account doctype """
     whatsapp_accounts = frappe.get_all('WhatsApp Account', filters={'status': 'Active'}, fields=['name', 'token', 'url', 'version', 'business_id'])
+    unresolved_flow_ids = set()
 
     for account in whatsapp_accounts:
         # get credentials
@@ -398,11 +414,21 @@ def fetch():
                             elif button["type"] == "PHONE_NUMBER":
                                 btn["phone_number"] = button.get("phone_number")
                             elif button["type"] == "FLOW":
-                                btn["flow"] = button.get("flow")
+                                btn["flow_id"] = button.get("flow_id")
+                                btn["flow"] = frappe.db.get_value("WhatsApp Flow", {"flow_id": btn["flow_id"]}) or None
+                                if not btn["flow"] and btn["flow_id"]:
+                                    unresolved_flow_ids.add(btn["flow_id"])
 
                             doc.append("buttons", btn)
 
                 upsert_doc_without_hooks(doc, "WhatsApp Button", "buttons")
+
+            if unresolved_flow_ids:
+                frappe.msgprint(
+                    _("Please Sync WhatsApp Flow, then Re-Sync Templates."),
+                    title=_("Unresolved WhatsApp Flow"),
+                    indicator="orange",
+                )
 
             return "Successfully fetched templates from meta"
 

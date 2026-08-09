@@ -11,7 +11,9 @@
   "phone_number",
   "website_url",
   "example_url",
-  "url_type"
+  "url_type",
+  "flow",
+  "flow_id"
  ],
  "fields": [
   {
@@ -53,12 +55,26 @@
    "fieldname": "example_url",
    "fieldtype": "Data",
    "label": "Example URL"
+  },
+  {
+   "fetch_from": "flow.flow_id",
+   "fieldname": "flow_id",
+   "fieldtype": "Data",
+   "label": "Flow ID"
+  },
+  {
+   "depends_on": "eval: doc.button_type == \"Flow\";",
+   "fieldname": "flow",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Flow",
+   "options": "WhatsApp Flow"
   }
  ],
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-02-10 10:57:52.134456",
+ "modified": "2026-08-05 13:05:41.756813",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Button",
