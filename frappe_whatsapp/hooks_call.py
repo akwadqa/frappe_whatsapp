@@ -16,20 +16,22 @@ def send_survey(doc, method=None):
         
     customer_mobile_no = doc.custom_mobile_no
     dflt_outgoing = frappe.db.get_value("WhatsApp Account", {"is_default_outgoing": 1}, "name")
-    flow = frappe.db.get_single_value("WhatsApp Settings", "whatsapp_flow_for_completed_orders")
+    
+    template = frappe.db.get_single_value("WhatsApp Settings", "whatsapp_template_for_completed_orders")
+    if template == None:
+        return
 
     frappe.get_doc({
         "doctype": "WhatsApp Message",
         "label": "Post-Order Survey Outgoing",
         "type": "Outgoing",
         "to": customer_mobile_no,
-        "content_type": "flow",
-        "flow": flow,
-        "flow_cta":"ابدأ",
+        "content_type": "text",
+        "use_template": True,
+        "template": template, 
         "whatsapp_account": dflt_outgoing,
         "reference_doctype": "Sales Order",
         "reference_name": doc.name,
-        "message": "We value your feedback. Would you like to take a moment to fill out our customer-satsifaction survey?",
     }).insert(ignore_permissions=True)
         
 

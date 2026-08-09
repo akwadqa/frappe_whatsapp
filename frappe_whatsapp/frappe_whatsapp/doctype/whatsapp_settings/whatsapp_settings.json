@@ -9,7 +9,7 @@
   "default_incoming_account",
   "default_outgoing_account",
   "column_break_skjo",
-  "whatsapp_flow_for_completed_orders"
+  "whatsapp_template_for_completed_orders"
  ],
  "fields": [
   {
@@ -29,17 +29,17 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "whatsapp_flow_for_completed_orders",
+   "fieldname": "whatsapp_template_for_completed_orders",
    "fieldtype": "Link",
-   "label": "WhatsApp Flow for Completed Orders",
-   "options": "WhatsApp Flow"
+   "label": "WhatsApp Template for Completed Orders",
+   "options": "WhatsApp Templates"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-08-04 15:32:48.241983",
+ "modified": "2026-08-05 14:51:01.965665",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Settings",

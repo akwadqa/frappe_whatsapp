@@ -316,26 +316,39 @@ def update_message_status(data):
 	doc = frappe.get_doc("WhatsApp Message", name)
 	doc.status = status
 	frappe.db.set_value(
-        "WhatsApp Message",
-        name,
-        {
-            "status": status,
-            "conversation_id": conversation
-        },
-        update_modified=False
+		"WhatsApp Message",
+		name,
+		{
+			"status": status,
+			"conversation_id": conversation
+		},
+		update_modified=False
 	)
 
 
 def handle_survey_response(doc):
 	try:
 		if doc.type == "Incoming" and doc.content_type == "flow" and doc.is_reply:
-			survey_message_name = frappe.db.exists("WhatsApp Message", {"message_id": doc.reply_to_message_id})
+			flow_response = json.loads(doc.flow_response or "{}")
+			flow_token = flow_response.get("flow_token")
+
+			survey_message_name = None
+			if flow_token:
+				survey_message_name = frappe.db.exists("WhatsApp Message", {"flow_token": flow_token, "type": "Outgoing"})
 			if not survey_message_name:
 				return
 
 			survey_message = frappe.get_doc("WhatsApp Message", survey_message_name)
 
-			survey_flow = frappe.get_doc("WhatsApp Flow", survey_message.flow)
+			# Handles direct Flow message, or Flow vie Template.
+			flow_name = survey_message.flow
+			if not flow_name and survey_message.template:
+				survey_template = frappe.get_doc("WhatsApp Templates", survey_message.template)
+				flow_button = next( (btn for btn in survey_template.buttons if btn.button_type == "Flow"), None)
+				flow_name = flow_button.flow if flow_button else None
+
+			survey_flow = frappe.get_doc("WhatsApp Flow", flow_name)
+
 			screen = ""
 			index = -1
 			screen_headings = {}
@@ -364,12 +377,13 @@ def handle_survey_response(doc):
 				"customer": customer,
 				"document_type": survey_message.reference_doctype,
 				"document_name": survey_message.reference_name,
-				"survey_message": doc.name
+				"survey_message": doc.name,
+				"survey_template": survey_message.template
 			}).insert(ignore_permissions=True)
 
 			# add responses as child table items
 			responses = []
-			survey = json.loads(doc.flow_response)
+			survey = dict(flow_response)
 			survey.pop("flow_token", None)
 
 			for question, answer in survey.items():
@@ -386,7 +400,7 @@ def handle_survey_response(doc):
 			survey_doc.save(ignore_permissions=True)
 
 	except Exception as e:
-		frappe.log_error(frappe.get_traceback(), "Error in handling survey response")
+		frappe.log_error("Error in handling survey response", frappe.get_traceback())
 
 
 def remove_index(value):

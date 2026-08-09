@@ -291,6 +291,12 @@ class WhatsAppFlow(Document):
 
         return payload
 
+    def get_entry_screen(self):
+        """Get the screen_id of the flow's entry point (first row of the screens table)."""
+        if not self.screens:
+            return None
+        return self.screens[0].screen_id
+
     def get_next_screen(self, current_screen):
         """Get the next screen in sequence."""
         found_current = False
