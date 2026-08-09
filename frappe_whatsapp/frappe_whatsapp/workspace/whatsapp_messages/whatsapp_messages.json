@@ -1,0 +1,106 @@
+{
+ "app": "frappe_whatsapp",
+ "charts": [
+  {
+   "chart_name": "WhatsApp Message Status",
+   "label": "WhatsApp Message Status"
+  }
+ ],
+ "content": "[{\"id\":\"FiWQXgu6M2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Bulk WhatsApp Message\",\"col\":4}},{\"id\":\"1eHt0-8EiP\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"WhatsApp Recipient List\",\"col\":4}},{\"id\":\"MTPmmAyq0o\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"WhatsApp Templates\",\"col\":4}},{\"id\":\"rsQY_iyfTZ\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":12}},{\"id\":\"zJsA3ngKXA\",\"type\":\"chart\",\"data\":{\"chart_name\":\"WhatsApp Message Status\",\"col\":12}}]",
+ "creation": "2026-04-19 21:50:49.839532",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "message-1",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "WhatsApp Messages",
+ "link_type": "DocType",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Reports",
+   "link_count": 3,
+   "link_type": "DocType",
+   "onboard": 0,
+   "only_for": "qatar",
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Inactive Customers",
+   "link_count": 0,
+   "link_to": "Inactive Customers",
+   "link_type": "Report",
+   "onboard": 0,
+   "only_for": "qatar",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Newly Registered Customers",
+   "link_count": 0,
+   "link_to": "Customer Acquisition and Loyalty",
+   "link_type": "Report",
+   "onboard": 0,
+   "only_for": "qatar",
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Customers with No Sales",
+   "link_count": 0,
+   "link_to": "Customers Without Any Sales Transactions",
+   "link_type": "Report",
+   "onboard": 0,
+   "only_for": "qatar",
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-08-06 16:16:06.099922",
+ "modified_by": "Administrator",
+ "module": "Frappe Whatsapp",
+ "name": "WhatsApp Messages",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 29.0,
+ "shortcuts": [
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "label": "Bulk WhatsApp Message",
+   "link_to": "Bulk WhatsApp Message",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "WhatsApp Templates",
+   "link_to": "WhatsApp Templates",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "WhatsApp Recipient List",
+   "link_to": "WhatsApp Recipient List",
+   "stats_filter": "[]",
+   "type": "DocType"
+  }
+ ],
+ "title": "WhatsApp Messages",
+ "type": "Workspace"
+}
