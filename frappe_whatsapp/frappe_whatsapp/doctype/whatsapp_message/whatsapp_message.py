@@ -345,6 +345,19 @@ class WhatsAppMessage(Document):
                         "index": current_idx,
                         "parameters": [{"type": "text", "text": url}]
                     })
+                elif btn.button_type == "Flow":
+                    # Meta only accepts a flow_token here at send time, use to pair with proper incoming message.
+                    flow_token = self.flow_token or frappe.generate_hash(length=16)
+                    self.flow_token = flow_token
+                    button_parameters.append({
+                        "type": "button",
+                        "sub_type": "flow",
+                        "index": current_idx,
+                        "parameters": [{
+                            "type": "action",
+                            "action": {"flow_token": flow_token}
+                        }]
+                    })
 
             if button_parameters:
                 data['template']['components'].extend(button_parameters)
