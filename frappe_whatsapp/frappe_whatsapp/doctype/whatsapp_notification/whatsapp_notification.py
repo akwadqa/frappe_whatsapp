@@ -219,6 +219,16 @@ class WhatsAppNotification(Document):
                         }
                     }]
                 })
+            elif template.header_type == 'VIDEO':
+                data['template']['components'].append({
+                    "type": "header",
+                    "parameters": [{
+                        "type": "video",
+                        "video": {
+                            "link": url
+                        }
+                    }]
+                })
             self.content_type = template.header_type.lower() if template.header_type else None
 
             if template.buttons:

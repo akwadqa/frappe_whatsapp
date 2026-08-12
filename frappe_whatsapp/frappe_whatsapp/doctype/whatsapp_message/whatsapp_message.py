@@ -282,17 +282,29 @@ class WhatsAppMessage(Document):
                         }]
                     })
 
+                elif template.header_type == 'VIDEO':
+                    data['template']['components'].append({
+                        "type": "header",
+                        "parameters": [{
+                            "type": "video",
+                            "video": {
+                                "link": url
+                            }
+                        }]
+                    })
+
             elif template.sample:
-                if template.header_type == 'IMAGE':
+                if template.header_type in ('IMAGE', 'VIDEO'):
                     if template.sample.startswith("http"):
                         url = f'{template.sample}'
                     else:
                         url = f'{frappe.utils.get_url()}{template.sample}'
+                    media_key = 'image' if template.header_type == 'IMAGE' else 'video'
                     data['template']['components'].append({
                         "type": "header",
                         "parameters": [{
-                            "type": "image",
-                            "image": {
+                            "type": media_key,
+                            media_key: {
                                 "link": url
                             }
                         }]
