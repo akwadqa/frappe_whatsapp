@@ -10,7 +10,6 @@ import requests
 from frappe.model.document import Document
 from frappe.integrations.utils import make_post_request, make_request
 from frappe.desk.form.utils import get_pdf_link
-
 from frappe_whatsapp.utils import get_whatsapp_account
 
 class WhatsAppTemplates(Document):  # nosemgrep: frappe-modifying-but-not-committing-other-method -- get_settings() sets self._token/_url/_version/_business_id/_app_id/_headers as in-memory scratch for the outbound Meta HTTP call; they are not DocType fields and must not be persisted
@@ -22,7 +21,7 @@ class WhatsAppTemplates(Document):  # nosemgrep: frappe-modifying-but-not-commit
             lang_code = frappe.db.get_value("Language", self.language) or "en"
             self.language_code = lang_code.replace("-", "_")
 
-        if self.header_type in ["IMAGE", "DOCUMENT"] and self.sample:
+        if self.header_type in ["IMAGE", "DOCUMENT", "VIDEO"] and self.sample:
             self.get_session_id(self.sample)
             self.get_media_id(self.sample)
 
@@ -98,7 +97,7 @@ class WhatsAppTemplates(Document):  # nosemgrep: frappe-modifying-but-not-commit
         headers = {
                 "authorization": f"OAuth {self._token}"
             }
-        
+
         # Check if it's a remote file, load data accordingly
         if file.startswith(('http://', 'https://')):
             remote_file_data = self._prepare_remote_file(file)
@@ -119,7 +118,6 @@ class WhatsAppTemplates(Document):  # nosemgrep: frappe-modifying-but-not-commit
         # Routed through File so path resolution stays inside Frappe's
         # vetted file handling — never feed a raw URL to open().
         return frappe.get_doc("File", {"file_url": file_url}).get_content()
-
 
     def after_insert(self):  # nosemgrep: frappe-modifying-but-not-committing -- self.actual_name/id/status are persisted via self.db_update() after the Meta round-trip; the static check can't trace through the API call
         # actual_name / id / status are persisted via self.db_update() below
@@ -254,6 +252,14 @@ class WhatsAppTemplates(Document):  # nosemgrep: frappe-modifying-but-not-commit
                 headers=self._headers,
                 data=json.dumps(data),
             )
+            # Fetch Meta response status explicitly so the local status field doesn't go stale.
+            status_response = make_request(
+                "GET",
+                f"{self._url}/{self._version}/{self.id}",
+                headers=self._headers,
+                params={"fields": "status"},
+            )
+            self.status = status_response["status"]  # nosemgrep: frappe-modifying-but-not-committing -- persisted by the enclosing save() from validate(), same as other fields set earlier in validate()
         except Exception as e:
             raise e
             # res = frappe.flags.integration_request.json()['error']
@@ -305,11 +311,8 @@ class WhatsAppTemplates(Document):  # nosemgrep: frappe-modifying-but-not-commit
                 samples = self.sample.split(", ")
                 header.update({"example": {"header_text": samples}})
         else:
-            pdf_link = ''
             if not self.sample:
-                key = frappe.get_doc(self.doctype, self.name).get_document_share_key()
-                link = get_pdf_link(self.doctype, self.name)
-                pdf_link = f"{frappe.utils.get_url()}{link}&key={key}"
+                frappe.throw(_("A sample file is required for a {0} header").format(self.header_type))
             header.update({"example": {"header_handle": [self._media_id]}})
 
         return header
