@@ -260,13 +260,12 @@ class WhatsAppTemplates(Document):  # nosemgrep: frappe-modifying-but-not-commit
                 params={"fields": "status"},
             )
             self.status = status_response["status"]  # nosemgrep: frappe-modifying-but-not-committing -- persisted by the enclosing save() from validate(), same as other fields set earlier in validate()
-        except Exception as e:
-            raise e
-            # res = frappe.flags.integration_request.json()['error']
-            # frappe.throw(
-            #     msg=res.get('error_user_msg', res.get("message")),
-            #     title=res.get("error_user_title", "Error"),
-            # )
+        except Exception:
+            res = frappe.flags.integration_request.json().get("error", {})
+            frappe.throw(
+                msg=res.get("error_user_msg", res.get("message")),
+                title=res.get("error_user_title", "Error"),
+            )
 
     def get_settings(self):
         """Get whatsapp settings."""
