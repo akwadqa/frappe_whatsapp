@@ -5,7 +5,7 @@ import frappe
 from frappe import _
 import json
 import time
-from frappe.utils import cint
+from frappe.utils import cint, get_datetime, now_datetime
 from frappe.model.document import Document
 from frappe.model.naming import make_autoname
 
@@ -50,8 +50,13 @@ class BulkWhatsAppMessage(Document):
             self.recipient_count = len(self.recipients)
     
     def on_submit(self):
-        self.db_set({"status": "Queued", "sent_count": 0})
-        self.queue_batches()
+        # `scheduled_time` is a naive Datetime, interpreted in the site's
+        # System Settings timezone - same convention as `now_datetime()`.
+        if self.scheduled_time and get_datetime(self.scheduled_time) > now_datetime():
+            self.db_set("status", "Scheduled")
+        else:
+            self.db_set({"status": "Queued", "sent_count": 0})
+            self.queue_batches()
 
     #### Sending Logic ####
     def queue_batches(self):
@@ -251,3 +256,26 @@ class BulkWhatsAppMessage(Document):
                 }
             ]
         }
+
+
+def process_scheduled_messages():
+    """Scheduler entry (see hooks.py `scheduler_events["all"]`).
+
+    Dispatches submitted Bulk WhatsApp Messages whose `scheduled_time` has
+    arrived. Comparison uses `now_datetime()`, which is already resolved to
+    the site's System Settings timezone, so `scheduled_time` naturally
+    follows whatever timezone is configured there.
+    """
+    due_messages = frappe.get_all(
+        "Bulk WhatsApp Message",
+        filters={
+            "docstatus": 1,
+            "status": "Scheduled",
+            "scheduled_time": ["<=", now_datetime()],
+        },
+        pluck="name",
+    )
+    for name in due_messages:
+        doc = frappe.get_doc("Bulk WhatsApp Message", name)
+        doc.db_set({"status": "Queued", "sent_count": 0})
+        doc.queue_batches()

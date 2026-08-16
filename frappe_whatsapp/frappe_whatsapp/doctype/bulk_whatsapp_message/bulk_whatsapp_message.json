@@ -118,8 +118,9 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Status",
-   "options": "Draft\nQueued\nIn Progress\nCompleted\nPartially Failed",
+   "options": "Draft\nScheduled\nQueued\nIn Progress\nCompleted\nPartially Failed",
    "read_only": 1
   },
   {
@@ -130,9 +131,10 @@
    "read_only": 1
   },
   {
-   "description": "Leave empty to send immediately after submission",
+   "description": "Leave empty to send immediately after submission. Time follows the site's configured System Settings timezone.",
    "fieldname": "scheduled_time",
    "fieldtype": "Datetime",
+   "in_list_view": 1,
    "label": "Scheduled Time"
   },
   {
@@ -211,10 +213,11 @@
    "mandatory_depends_on": "eval:doc.is_mpm==1"
   }
  ],
+ "hide_toolbar": 1,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-30 11:30:05.293810",
+ "modified": "2026-08-16 22:49:12.011784",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "Bulk WhatsApp Message",
@@ -250,7 +253,6 @@
    "write": 1
   }
  ],
- "hide_toolbar": 1,
  "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
