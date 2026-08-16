@@ -15,7 +15,7 @@ from frappe.model.naming import make_autoname
 # Save this as a Python file in your app's folder: 
 # frappe_whatsapp/frappe_whatsapp/doctype/bulk_whatsapp_message/bulk_whatsapp_message.py
 
-BATCH_SIZE = 700
+BATCH_SIZE = 400
 THROTTLE_DELAY = 0.03  # 30ms
 
 class BulkWhatsAppMessage(Document):
@@ -69,7 +69,7 @@ class BulkWhatsAppMessage(Document):
                 self.name,
                 "process_batch",
                 queue="long",
-                timeout=600,
+                timeout=900,
                 recipients=batch
             )
     
