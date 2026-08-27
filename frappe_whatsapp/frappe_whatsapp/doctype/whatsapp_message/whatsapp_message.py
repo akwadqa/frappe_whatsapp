@@ -209,7 +209,11 @@ class WhatsAppMessage(Document):
 
     def send_template(self):
         """Send template."""
-        template = frappe.get_doc("WhatsApp Templates", self.template)  # 2x SELECT (cacheable - same template for whole batch)
+        # Bulk path sets `flags._cached_template` to avoid re-loading the same
+        # template for every recipient in a batch (2x SELECT). Any other caller
+        # (single send, notification, retry) falls back to a fresh get_doc.
+        template = getattr(self, "flags", {}).get("_cached_template") or \
+            frappe.get_doc("WhatsApp Templates", self.template)  # 2x SELECT (cacheable - same template for whole batch)
         data = {
             "messaging_product": "whatsapp",
             "to": format_number(self.to),
@@ -378,11 +382,17 @@ class WhatsAppMessage(Document):
 
     def notify(self, data):
         """Notify."""
-        whatsapp_account = frappe.get_doc(
-            "WhatsApp Account",
-            self.whatsapp_account,
-        )  # 1x SELECT (cacheable - same account for whole batch)
-        token = whatsapp_account.get_password("token")
+        # Bulk path passes a pre-loaded account + decoded token via flags to avoid
+        # a fresh get_doc + get_password per recipient (1x SELECT). Other callers
+        # fall back to the normal load.
+        whatsapp_account = getattr(self, "flags", {}).get("_cached_account")
+        token = getattr(self, "flags", {}).get("_cached_account_token")
+        if whatsapp_account is None:
+            whatsapp_account = frappe.get_doc(
+                "WhatsApp Account",
+                self.whatsapp_account,
+            )  # 1x SELECT (cacheable - same account for whole batch)
+            token = whatsapp_account.get_password("token")
 
         headers = {
             "authorization": f"Bearer {token}",
