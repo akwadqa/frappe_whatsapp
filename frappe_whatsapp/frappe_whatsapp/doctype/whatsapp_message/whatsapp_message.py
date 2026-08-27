@@ -212,8 +212,13 @@ class WhatsAppMessage(Document):
         # Bulk path sets `flags._cached_template` to avoid re-loading the same
         # template for every recipient in a batch (2x SELECT). Any other caller
         # (single send, notification, retry) falls back to a fresh get_doc.
-        template = getattr(self, "flags", {}).get("_cached_template") or \
-            frappe.get_doc("WhatsApp Templates", self.template)  # 2x SELECT (cacheable - same template for whole batch)
+        _cached_template = getattr(self, "flags", {}).get("_cached_template")
+        if _cached_template is not None:
+            template = _cached_template
+            _log_cache_usage("WhatsApp Templates", self.template, from_cache=True)
+        else:
+            template = frappe.get_doc("WhatsApp Templates", self.template)  # 2x SELECT (cacheable - same template for whole batch)
+            _log_cache_usage("WhatsApp Templates", self.template, from_cache=False)
         data = {
             "messaging_product": "whatsapp",
             "to": format_number(self.to),
@@ -393,6 +398,9 @@ class WhatsAppMessage(Document):
                 self.whatsapp_account,
             )  # 1x SELECT (cacheable - same account for whole batch)
             token = whatsapp_account.get_password("token")
+            _log_cache_usage("WhatsApp Account", self.whatsapp_account, from_cache=False)
+        else:
+            _log_cache_usage("WhatsApp Account", self.whatsapp_account, from_cache=True)
 
         headers = {
             "authorization": f"Bearer {token}",
@@ -485,6 +493,19 @@ class WhatsAppMessage(Document):
             res = frappe.flags.integration_request.json().get("error", {})
             error_message = res.get("Error", res.get("message"))
             frappe.log_error("WhatsApp API Error", f"{error_message}\n{res}")
+
+
+def _log_cache_usage(resource, resource_name, from_cache):
+    """Log whether a shared resource (account/template) came from the batch cache
+    or was loaded fresh from the database. Kept low-noise: only logs the first
+    load per worker request to avoid flooding the log with one entry per message."""
+    source = "CACHE" if from_cache else "DATABASE"
+    flag_key = f"_logged_{resource}_from_{source}_{resource_name}"
+    if not getattr(frappe.local, flag_key, False):
+        setattr(frappe.local, flag_key, True)
+        frappe.logger().info(
+            f"[frappe_whatsapp] {resource} '{resource_name}' loaded from {source}"
+        )
 
 
 def on_doctype_update():
