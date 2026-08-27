@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Personal Access Card</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+
+
+
+<style>
+
+.ar-text {
+    direction: rtl;
+    unicode-bidi: isolate;
+    font-family: 'IBM Plex Sans Arabic', sans-serif;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e5e7eb; /* 🔑 NOT transparent */
+    font-family: Inter, sans-serif;
+}
+
+.card-wrapper {
+    width: 360px;
+    height: 640px;    
+    box-sizing: border-box;
+    /* padding:32px 24px; */
+    /* display: flex; */
+}
+
+.card {
+    width: 100%;
+    height: 100%;
+    background: #ffffff;
+    overflow: hidden;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    display: flex;
+    flex-direction: column;
+    /* border-radius: 16px; */
+    /* margin:auto */
+}
+
+.header {
+    background: #1F2D4A;
+    color: white;
+    padding: 18px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.content {
+    flex: 1;
+    padding: 24px 24px;
+    text-align: center;
+}
+
+.footer {
+    background: #1F2D4A;
+    color: white;
+    padding: 18px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.qr-box {
+    background: #fff;
+    border-radius: 16px;
+    display: inline-block;
+    margin: 8px 0;
+}
+
+.qr-box img {
+    width: 280px;
+    height: 280px;
+}
+
+.brand {
+    /* font-size: 32px; */
+    font-weight: bold;
+}
+
+.brand-ar {
+    /* font-size: 32px; */
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card-wrapper">
+    <div class="card">
+
+        <div class="header">
+            <div ><span class="brand">{{ brand_en }} </span> <span class="ar-text brand-ar"> {{ brand_ar }}</span></div>
+        </div>
+
+        <div class="content">
+            <p class="ar-text"><strong>{{ subtitle_ar }}</strong></p>
+            <p><strong>{{ subtitle }}</strong></p>
+
+            <div class="qr-box">
+                <img src="{{ qr_image_url }}">
+            </div>            
+        </div>
+
+        <div class="footer">
+            <div>Guest: {{ guest_count }}</div>
+            <div>{{ website }}</div>
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,5 +1,5 @@
 [project]
-name = "frappe_whatsapp"
+name = "frappe_whatsapp_new"
 authors = [
     { name = "Shridhar Patil", email = "shrip.dev@gmail.com"}
 ]
@@ -9,6 +9,7 @@ readme = "README.md"
 dynamic = ["version"]
 dependencies = [
     "python-magic~=0.4.24",
+    "qrcode[pil]",
 ]
 
 [build-system]
