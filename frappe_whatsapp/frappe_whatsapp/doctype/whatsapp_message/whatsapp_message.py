@@ -34,13 +34,13 @@ class WhatsAppMessage(Document):
 
     def create_whatsapp_profile(self):
         number = format_number(self.get("from") or self.to)
-        if not frappe.db.exists("WhatsApp Profiles", {"number": number}):
+        if not frappe.db.exists("WhatsApp Profiles", {"number": number}):  # 1x SELECT (not-cacheable - unique per number)
             frappe.get_doc({
                 "doctype": "WhatsApp Profiles",
                 "profile_name": self.profile_name,
                 "number": number,
                 "whatsapp_account": self.whatsapp_account
-            }).insert(ignore_permissions=True)
+            }).insert(ignore_permissions=True)  # 1x INSERT (not-cacheable - unique per number, only for new number)
 
     def set_whatsapp_account(self):
         """Set whatsapp account to default if missing"""
@@ -209,7 +209,7 @@ class WhatsAppMessage(Document):
 
     def send_template(self):
         """Send template."""
-        template = frappe.get_doc("WhatsApp Templates", self.template)
+        template = frappe.get_doc("WhatsApp Templates", self.template)  # 2x SELECT (cacheable - same template for whole batch)
         data = {
             "messaging_product": "whatsapp",
             "to": format_number(self.to),
@@ -239,7 +239,7 @@ class WhatsAppMessage(Document):
                     template_parameters.append(value)                    
 
             else:
-                ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
+                ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)  # 1x SELECT (not-cacheable - only if no body_param & no custom_ref_doc; unique per doc)
                 for field_name in field_names:
                     value = ref_doc.get_formatted(field_name.strip())
                     parameters.append({"type": "text", "text": value})
@@ -349,7 +349,7 @@ class WhatsAppMessage(Document):
                         "parameters": [{"type": "payload", "payload": btn.button_label}]
                     })
                 elif btn.button_type == "Visit Website" and btn.url_type == "Dynamic":
-                    ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
+                    ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)  # 1x SELECT (not-cacheable - dynamic URL button; unique per doc)
                     url = ref_doc.get_formatted(btn.website_url)
                     button_parameters.append({
                         "type": "button",
@@ -381,7 +381,7 @@ class WhatsAppMessage(Document):
         whatsapp_account = frappe.get_doc(
             "WhatsApp Account",
             self.whatsapp_account,
-        )
+        )  # 1x SELECT (cacheable - same account for whole batch)
         token = whatsapp_account.get_password("token")
 
         headers = {
@@ -393,8 +393,8 @@ class WhatsAppMessage(Document):
                 f"{whatsapp_account.url}/{whatsapp_account.version}/{whatsapp_account.phone_id}/messages",
                 headers=headers,
                 data=json.dumps(data),
-            )
-            self.db_set("message_id", response["messages"][0]["id"])
+            )  # HTTP POST to Meta (not-cacheable - per-message network call, dominant cost ~200-500ms)
+            self.db_set("message_id", response["messages"][0]["id"])  # 1x UPDATE (not-cacheable - unique message_id per send)
             frappe.publish_realtime(
                 self.to,
                 {
@@ -415,7 +415,7 @@ class WhatsAppMessage(Document):
                     "template": "Text Message",
                     "meta_data": frappe.flags.integration_request.json(),
                 }
-            ).insert(ignore_permissions=True)
+            ).insert(ignore_permissions=True)  # 1x INSERT (not-cacheable - only on error; per-message log)
 
             if not self.is_new():
                 self.db_set(

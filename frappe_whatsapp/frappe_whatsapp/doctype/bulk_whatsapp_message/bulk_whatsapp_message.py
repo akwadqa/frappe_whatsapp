@@ -90,7 +90,26 @@ class BulkWhatsAppMessage(Document):
     def process_batch(self, recipients):
         success = 0
         failed = 0
-        
+
+        # QUERY COUNT INSIDE THIS LOOP - ONE message (simple text-only template,
+        # body params from recipient_data -> custom_ref_doc, no header / no buttons):
+        #
+        #   send_template()                           whatsapp_message.py
+        #     get_doc("WhatsApp Templates")            1x SELECT  (main doc)
+        #     get_doc(..)->load_children(buttons)      1x SELECT  (buttons child table, always loaded)
+        #   notify()                                   1x SELECT  (get_doc "WhatsApp Account")
+        #     make_post_request(...)                  HTTP to Meta (NOT a DB query)
+        #     db_set("message_id",...)                 1x UPDATE
+        #   create_whatsapp_profile()                  1x SELECT  (db.exists "WhatsApp Profiles")
+        #     insert profile (first time only)         1x INSERT
+        #   wa_message.insert() -> db_insert()         1x INSERT  (tabWhatsApp Message)
+        #
+        # TOTAL per message:          6 queries (profile exists)  -> no INSERT
+        #                             7 queries (new number)      -> +1 INSERT profile
+        # plus 1 HTTP POST to Meta (dominant cost, ~200-500ms, sequential).
+        #
+        # Only queries inside the loop scale with recipient count. The
+        # sent_count UPDATE + update_status() counts below run ONCE per batch.
         for r in recipients:
             try:
                 self.create_message_record(r)
@@ -101,13 +120,14 @@ class BulkWhatsAppMessage(Document):
 
             time.sleep(THROTTLE_DELAY)
 
+        # ── OUTSIDE THE LOOP (once per batch, NOT per message) ──
         frappe.db.sql("""
             UPDATE `tabBulk WhatsApp Message`
             SET sent_count = sent_count + %s
             WHERE name = %s
-            """, (success, self.name))
-        
-        self.update_status()
+            """, (success, self.name))       # 1x UPDATE
+
+        self.update_status()                # 3x SELECT COUNT (see update_status)
     
     def create_message_record(self, recipient):
         wa_message = frappe.new_doc("WhatsApp Message")
@@ -144,20 +164,29 @@ class BulkWhatsAppMessage(Document):
         
         if self.attach:
             wa_message.attach = self.attach
-        
+
+        # ── THIS INSERT TRIGGERS THE PER-MESSAGE DB QUERIES (see process_batch) ──
+        # Simple text-only template -> whatsapp_message.py:
+        #   send_template()           get_doc Templates     2x SELECT
+        #   notify()                  get_doc Account       1x SELECT
+        #                            make_post_request      HTTP POST (not DB)
+        #                            db_set message_id     1x UPDATE
+        #   create_whatsapp_profile() db.exists Profiles    1x SELECT (+ 1x INSERT new number)
+        #   db_insert()               INSERT Message        1x INSERT
+        # TOTAL: 6 queries (exists) / 7 queries (new number) + 1 HTTP POST.
         wa_message.insert(ignore_permissions=True)
 
     def update_status(self):
         total = self.recipient_count
-        sent = frappe.db.count("WhatsApp Message", {
+        sent = frappe.db.count("WhatsApp Message", {   # 1x SELECT COUNT
             "bulk_message_reference": self.name,
             "status": ["in", SENT_STATUSES],
         })
-        failed = frappe.db.count("WhatsApp Message", {
+        failed = frappe.db.count("WhatsApp Message", {  # 1x SELECT COUNT
             "bulk_message_reference": self.name,
             "status": ["in", FAILED_STATUSES],
         })
-        queued = frappe.db.count("WhatsApp Message", {
+        queued = frappe.db.count("WhatsApp Message", {  # 1x SELECT COUNT
             "bulk_message_reference": self.name,
             "status": ["in", QUEUED_STATUSES],
         })
