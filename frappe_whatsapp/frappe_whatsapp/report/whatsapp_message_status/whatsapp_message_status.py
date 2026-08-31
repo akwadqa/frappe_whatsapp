@@ -1,25 +1,25 @@
 import frappe
 from frappe import _
 
-# Same grouping used by the "Check Progress" button on the Bulk WhatsApp
-# Message form: delivered/read count as "Sent" for a simple, non-technical
-# summary.
-SENT_STATUSES = ["sent", "delivered", "read"]
+SENT_STATUSES = ["sent", "delivered", "read", "Success"]
+FAILED_STATUSES = ["failed", "Failed"]
+QUEUED_STATUSES = ["queued", "Queued"]
 
 STATUS_LABELS = {
     "queued": _("Queued"),
+    "Queued": _("Queued"),
     "sent": _("Sent"),
+    "Success": _("Sent"),
     "delivered": _("Delivered"),
     "read": _("Read"),
     "failed": _("Failed"),
+    "Failed": _("Failed"),
 }
 
-# Maps the human-readable filter option back to the underlying status
-# value(s) stored on WhatsApp Message.
 STATUS_FILTER_MAP = {
-    "Queued": ["queued"],
-    "Sent": ["sent", "delivered", "read"],
-    "Failed": ["failed"],
+    "Queued": QUEUED_STATUSES,
+    "Sent": SENT_STATUSES,
+    "Failed": FAILED_STATUSES,
 }
 
 
@@ -101,7 +101,7 @@ def get_data(filters):
 
     for row in rows:
         row["status_label"] = STATUS_LABELS.get(row.status, row.status) or _("Unknown")
-        if row.status != "failed":
+        if row.status not in FAILED_STATUSES:
             row["error_message"] = ""
 
     return rows
@@ -112,8 +112,8 @@ def get_counts(filters):
 
     total = frappe.db.count("WhatsApp Message", query_filters)
     sent = frappe.db.count("WhatsApp Message", {**query_filters, "status": ["in", SENT_STATUSES]})
-    failed = frappe.db.count("WhatsApp Message", {**query_filters, "status": "failed"})
-    queued = frappe.db.count("WhatsApp Message", {**query_filters, "status": "queued"})
+    failed = frappe.db.count("WhatsApp Message", {**query_filters, "status": ["in", FAILED_STATUSES]})
+    queued = frappe.db.count("WhatsApp Message", {**query_filters, "status": ["in", QUEUED_STATUSES]})
     # Messages whose status doesn't fall into any known bucket (blank/NULL,
     # or a stray non-standard value) - kept visible instead of silently
     # vanishing from the totals.
