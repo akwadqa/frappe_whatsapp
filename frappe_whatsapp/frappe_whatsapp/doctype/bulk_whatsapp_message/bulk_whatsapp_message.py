@@ -18,6 +18,10 @@ from frappe.model.naming import make_autoname
 BATCH_SIZE = 400
 THROTTLE_DELAY = 0.03  # 30ms
 
+SENT_STATUSES = ["sent", "delivered", "read", "Success"]
+FAILED_STATUSES = ["failed", "Failed"]
+QUEUED_STATUSES = ["queued", "Queued"]
+
 class BulkWhatsAppMessage(Document):
     def autoname(self):
         self.name = make_autoname("BULK-WA-.YYYY.-.#####")
@@ -110,7 +114,7 @@ class BulkWhatsAppMessage(Document):
         wa_message.to = recipient.get("mobile_number")
         #wa_message.type = "Outgoing"
         wa_message.message_type = "Text"
-        wa_message.status = "Queued"
+        wa_message.status = "queued"
         wa_message.bulk_message_reference = self.name
 
         if self.whatsapp_account:
@@ -147,15 +151,15 @@ class BulkWhatsAppMessage(Document):
         total = self.recipient_count
         sent = frappe.db.count("WhatsApp Message", {
             "bulk_message_reference": self.name,
-            "status": ["in", ["sent", "delivered", "read", "Success"]],
+            "status": ["in", SENT_STATUSES],
         })
         failed = frappe.db.count("WhatsApp Message", {
             "bulk_message_reference": self.name,
-            "status": "Failed",
+            "status": ["in", FAILED_STATUSES],
         })
         queued = frappe.db.count("WhatsApp Message", {
             "bulk_message_reference": self.name,
-            "status": "Queued",
+            "status": ["in", QUEUED_STATUSES],
         })
 
         if queued > 0:
@@ -173,7 +177,7 @@ class BulkWhatsAppMessage(Document):
     def retry_failed(self):
         failed_messages = frappe.get_all(
             "WhatsApp Message",
-            filters={"bulk_message_reference": self.name, "status": "Failed"},
+            filters={"bulk_message_reference": self.name, "status": ["in", FAILED_STATUSES]},
             fields=["name"],
         )
         for msg in failed_messages:
@@ -193,14 +197,16 @@ class BulkWhatsAppMessage(Document):
         # Clear the prior message_id so the template send path (which gates
         # on `not self.message_id`) runs again.
         message_doc.message_id = None
-        message_doc.status = "Queued"
+        message_doc.status = "queued"
+        message_doc.error_code = None
+        message_doc.error_message = None
         message_doc.db_update()
         try:
             message_doc.send_outgoing()
-            message_doc.status = "Success"
+            message_doc.status = "sent"
             message_doc.db_update()
         except Exception:
-            message_doc.status = "Failed"
+            message_doc.status = "failed"
             message_doc.db_update()
             frappe.log_error(
                 title=f"WhatsApp bulk retry failed: {message_doc.name}"
@@ -211,15 +217,15 @@ class BulkWhatsAppMessage(Document):
         total = self.recipient_count
         sent = frappe.db.count("WhatsApp Message", {
             "bulk_message_reference": self.name,
-            "status": ["in", ["sent","delivered", "Success", "read"]]
+            "status": ["in", SENT_STATUSES]
         })
         failed = frappe.db.count("WhatsApp Message", {
             "bulk_message_reference": self.name,
-            "status": "Failed"
+            "status": ["in", FAILED_STATUSES]
         })
         queued = frappe.db.count("WhatsApp Message", {
             "bulk_message_reference": self.name,
-            "status": "Queued"
+            "status": ["in", QUEUED_STATUSES]
         })
         
         return {

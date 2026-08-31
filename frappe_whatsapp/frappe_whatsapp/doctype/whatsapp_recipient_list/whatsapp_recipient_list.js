@@ -100,6 +100,8 @@ frappe.ui.form.on("WhatsApp Recipient List", {
     // Add a button to validate all recipients
     frm.add_custom_button(__("Validate Recipients"), function () {
       let invalid = [];
+      let seen = {};
+      let duplicate_groups = {};
 
       (frm.doc.recipients || []).forEach(function (row, idx) {
         let mobile = row.mobile_number || "";
@@ -114,14 +116,45 @@ frappe.ui.form.on("WhatsApp Recipient List", {
         ) {
           invalid.push({
             idx: idx + 1,
+            name: row.name,
             mobile: row.mobile_number,
             reason: "Invalid format",
           });
         }
+
+        if (mobile) {
+          if (!seen[mobile]) {
+            seen[mobile] = [];
+          }
+          seen[mobile].push({
+            idx: idx + 1,
+            name: row.name,
+            recipient_name: row.recipient_name || "",
+          });
+        }
       });
 
+      Object.keys(seen).forEach(function (mobile) {
+        if (seen[mobile].length > 1) {
+          duplicate_groups[mobile] = seen[mobile];
+        }
+      });
+
+      let duplicate_count = Object.keys(duplicate_groups).length;
+
+      if (!invalid.length && !duplicate_count) {
+        frappe.msgprint({
+          title: __("Validation Results"),
+          indicator: "green",
+          message: __("All recipients have valid, unique numbers"),
+        });
+        return;
+      }
+
+      let html = "";
+
       if (invalid.length) {
-        let html =
+        html +=
           '<div class="text-danger">Found ' +
           invalid.length +
           ' invalid numbers:</div><table class="table table-bordered">';
@@ -140,20 +173,88 @@ frappe.ui.form.on("WhatsApp Recipient List", {
         });
 
         html += "</tbody></table>";
-
-        frappe.msgprint({
-          title: __("Validation Results"),
-          indicator: "red",
-          message: html,
-        });
-
-    } else {
-        frappe.msgprint({
-          title: __("Validation Results"),
-          indicator: "green",
-          message: __("All recipients have valid numbers"),
-        });
       }
+
+      if (duplicate_count) {
+        html +=
+          '<div class="text-danger" style="margin-top: 10px;">Found ' +
+          duplicate_count +
+          ' duplicate number(s):</div><table class="table table-bordered">';
+        html +=
+          "<thead><tr><th>Number</th><th>Rows</th><th>Name(s)</th></tr></thead><tbody>";
+
+        Object.keys(duplicate_groups).forEach(function (mobile) {
+          let rows = duplicate_groups[mobile].map((r) => r.idx).join(", ");
+          let names = duplicate_groups[mobile]
+            .map((r) => r.recipient_name)
+            .filter((n) => n)
+            .join(", ");
+          html +=
+            "<tr><td>" +
+            mobile +
+            "</td><td>" +
+            rows +
+            "</td><td>" +
+            names +
+            "</td></tr>";
+        });
+
+        html += "</tbody></table>";
+      }
+
+      let dialog = new frappe.ui.Dialog({
+        title: __("Validation Results"),
+        fields: [
+          {
+            fieldtype: "HTML",
+            fieldname: "validation_results",
+            options: html,
+          },
+        ],
+        primary_action_label:
+          duplicate_count || invalid.length
+            ? __("Remove All (Duplicates and Invalid)")
+            : __("Close"),
+        primary_action: function () {
+          if (duplicate_count || invalid.length) {
+            let rows_to_remove = new Set();
+
+            Object.keys(duplicate_groups).forEach(function (mobile) {
+              // Keep the first occurrence, remove the rest
+              duplicate_groups[mobile].slice(1).forEach(function (r) {
+                rows_to_remove.add(r.name);
+              });
+            });
+
+            invalid.forEach(function (row) {
+              rows_to_remove.add(row.name);
+            });
+
+            frm.doc.recipients = frm.doc.recipients.filter(
+              (row) => !rows_to_remove.has(row.name)
+            );
+            frm.refresh_field("recipients");
+            frm.dirty();
+
+            frappe.msgprint({
+              title: __("Recipients Removed"),
+              indicator: "green",
+              message: __("Removed {0} recipient(s) (duplicates and invalid numbers)", [
+                rows_to_remove.size,
+              ]),
+            });
+          }
+
+          dialog.hide();
+        },
+        secondary_action_label:
+          duplicate_count || invalid.length ? __("Close") : null,
+        secondary_action: function () {
+          dialog.hide();
+        },
+      });
+
+      dialog.show();
     });
   },
 });
