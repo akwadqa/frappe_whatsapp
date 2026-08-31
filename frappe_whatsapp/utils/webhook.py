@@ -303,19 +303,28 @@ def update_template_status(data):
 
 def update_message_status(data):
 	"""Update message status."""
-	id = data['statuses'][0]['id']
-	status = data['statuses'][0]['status']
-	conversation = data['statuses'][0].get('conversation', {}).get('id')
+	status_data = data['statuses'][0]
+	id = status_data['id']
+	status = status_data['status']
+	conversation = status_data.get('conversation', {}).get('id')
 	name = frappe.db.get_value("WhatsApp Message", filters={"message_id": id})
 
-	doc = frappe.get_doc("WhatsApp Message", name)
-	doc.status = status
+	if not name:
+		return
+
+	values = {
+		"status": status,
+		"conversation_id": conversation
+	}
+
+	if status == "failed":
+		error = (status_data.get("errors") or [{}])[0]
+		values["error_code"] = error.get("code")
+		values["error_message"] = error.get("title") or error.get("message")
+
 	frappe.db.set_value(
-        "WhatsApp Message",
-        name,
-        {
-            "status": status,
-            "conversation_id": conversation
-        },
-        update_modified=False
+		"WhatsApp Message",
+		name,
+		values,
+		update_modified=False
 	)
