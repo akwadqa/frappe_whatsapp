@@ -116,6 +116,7 @@ frappe.ui.form.on("WhatsApp Recipient List", {
         ) {
           invalid.push({
             idx: idx + 1,
+            name: row.name,
             mobile: row.mobile_number,
             reason: "Invalid format",
           });
@@ -210,38 +211,44 @@ frappe.ui.form.on("WhatsApp Recipient List", {
             options: html,
           },
         ],
-        primary_action_label: duplicate_count
-          ? __("Remove Duplicates")
-          : __("Close"),
+        primary_action_label:
+          duplicate_count || invalid.length
+            ? __("Remove All (Duplicates and Invalid)")
+            : __("Close"),
         primary_action: function () {
-          if (duplicate_count) {
-            let rows_to_remove = [];
+          if (duplicate_count || invalid.length) {
+            let rows_to_remove = new Set();
 
             Object.keys(duplicate_groups).forEach(function (mobile) {
               // Keep the first occurrence, remove the rest
               duplicate_groups[mobile].slice(1).forEach(function (r) {
-                rows_to_remove.push(r.name);
+                rows_to_remove.add(r.name);
               });
             });
 
+            invalid.forEach(function (row) {
+              rows_to_remove.add(row.name);
+            });
+
             frm.doc.recipients = frm.doc.recipients.filter(
-              (row) => !rows_to_remove.includes(row.name)
+              (row) => !rows_to_remove.has(row.name)
             );
             frm.refresh_field("recipients");
             frm.dirty();
 
             frappe.msgprint({
-              title: __("Duplicates Removed"),
+              title: __("Recipients Removed"),
               indicator: "green",
-              message: __("Removed {0} duplicate recipient(s)", [
-                rows_to_remove.length,
+              message: __("Removed {0} recipient(s) (duplicates and invalid numbers)", [
+                rows_to_remove.size,
               ]),
             });
           }
 
           dialog.hide();
         },
-        secondary_action_label: duplicate_count ? __("Close") : null,
+        secondary_action_label:
+          duplicate_count || invalid.length ? __("Close") : null,
         secondary_action: function () {
           dialog.hide();
         },
