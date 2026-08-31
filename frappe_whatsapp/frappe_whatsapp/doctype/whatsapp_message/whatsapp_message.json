@@ -9,6 +9,8 @@
   "label",
   "type",
   "status",
+  "error_code",
+  "error_message",
   "to",
   "from",
   "profile_name",
@@ -64,7 +66,22 @@
    "fieldname": "status",
    "fieldtype": "Data",
    "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Status",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.error_code || doc.error_message",
+   "fieldname": "error_code",
+   "fieldtype": "Data",
+   "label": "Error Code",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.error_code || doc.error_message",
+   "fieldname": "error_message",
+   "fieldtype": "Small Text",
+   "label": "Failure Reason",
    "read_only": 1
   },
   {

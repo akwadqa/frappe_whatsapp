@@ -200,9 +200,9 @@ class WhatsAppMessage(Document):
 
             try:
                 self.notify(data)
-                self.status = "Success"
+                self.status = "sent"
             except Exception as e:
-                self.status = "Failed"
+                self.status = "failed"
                 frappe.throw(f"Failed to send message {str(e)}")
         elif not self.message_id:
             self.send_template()
@@ -416,6 +416,20 @@ class WhatsAppMessage(Document):
                     "meta_data": frappe.flags.integration_request.json(),
                 }
             ).insert(ignore_permissions=True)
+
+            if not self.is_new():
+                self.db_set(
+                    {
+                        "status": "failed",
+                        "error_code": res.get("code"),
+                        "error_message": error_message,
+                    },
+                    update_modified=False,
+                )
+            else:
+                self.status = "failed"
+                self.error_code = res.get("code")
+                self.error_message = error_message
 
             frappe.throw(msg=error_message, title=res.get("error_user_title", "Error"))
 
