@@ -8,43 +8,51 @@ frappe.ui.form.on('Bulk WhatsApp Message', {
         
         // Add progress bar
         if(frm.doc.docstatus === 1 && frm.doc.status != 'Draft') {
-            frm.add_custom_button(__('Check Progress'), function() {
-                frappe.call({
-                    method: 'frappe_whatsapp.utils.bulk_messaging.get_progress',
-                    args: {
-                        name: frm.doc.name
-                    },
-                    callback: function(r) {
-                        if(r.message) {
-                            let progress = r.message;
-                            let html = `
-                                <div class="progress" style="height: 20px;">
-                                    <div class="progress-bar bg-success" role="progressbar" 
-                                        style="width: ${progress.percent}%;" 
-                                        aria-valuenow="${progress.percent}" 
-                                        aria-valuemin="0" 
-                                        aria-valuemax="100">
-                                        ${Math.round(progress.percent)}%
-                                    </div>
-                                </div>
-                                <div class="mt-2">
-                                    <span class="badge badge-success">Sent: ${progress.sent}</span>
-                                    <span class="badge badge-danger ml-2">Failed: ${progress.failed}</span>
-                                    <span class="badge badge-warning ml-2">Queued: ${progress.queued}</span>
-                                    <span class="badge badge-info ml-2">Total: ${progress.total}</span>
-                                </div>
-                            `;
-                            
-                            frappe.msgprint({
-                                title: __('Message Progress'),
-                                indicator: 'blue',
-                                message: html
-                            });
-                        }
-                    }
+            // "Check Progress" superseded by the "View Messages" report (WhatsApp Message Status).
+            // frm.add_custom_button(__('Check Progress'), function() {
+            //     frappe.call({
+            //         method: 'frappe_whatsapp.utils.bulk_messaging.get_progress',
+            //         args: {
+            //             name: frm.doc.name
+            //         },
+            //         callback: function(r) {
+            //             if(r.message) {
+            //                 let progress = r.message;
+            //                 let html = `
+            //                     <div class="progress" style="height: 20px;">
+            //                         <div class="progress-bar bg-success" role="progressbar"
+            //                             style="width: ${progress.percent}%;"
+            //                             aria-valuenow="${progress.percent}"
+            //                             aria-valuemin="0"
+            //                             aria-valuemax="100">
+            //                             ${Math.round(progress.percent)}%
+            //                         </div>
+            //                     </div>
+            //                     <div class="mt-2">
+            //                         <span class="badge badge-success">Sent: ${progress.sent}</span>
+            //                         <span class="badge badge-danger ml-2">Failed: ${progress.failed}</span>
+            //                         <span class="badge badge-warning ml-2">Queued: ${progress.queued}</span>
+            //                         <span class="badge badge-info ml-2">Total: ${progress.total}</span>
+            //                     </div>
+            //                 `;
+            //
+            //                 frappe.msgprint({
+            //                     title: __('Message Progress'),
+            //                     indicator: 'blue',
+            //                     message: html
+            //                 });
+            //             }
+            //         }
+            //     });
+            // });
+
+            // Open the per-message status report, pre-filtered to this campaign
+            frm.add_custom_button(__('View Messages'), function() {
+                frappe.set_route('query-report', 'WhatsApp Message Status', {
+                    campaign: frm.doc.name
                 });
             });
-            
+
             // Add retry button
             frm.add_custom_button(__('Retry Failed Messages'), function() {
                 frappe.call({
