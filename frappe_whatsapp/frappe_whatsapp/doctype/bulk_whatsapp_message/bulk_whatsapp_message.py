@@ -72,7 +72,7 @@ class BulkWhatsAppMessage(Document):
                 self.doctype,
                 self.name,
                 "process_batch",
-                queue="long",
+                queue="whatsapp",
                 timeout=900,
                 recipients=batch
             )
@@ -237,7 +237,7 @@ class BulkWhatsAppMessage(Document):
                 self.doctype,
                 self.name,
                 "resend_single_message",
-                "long",
+                "whatsapp",
                 4000,
                 message_name=msg.name,
             )
