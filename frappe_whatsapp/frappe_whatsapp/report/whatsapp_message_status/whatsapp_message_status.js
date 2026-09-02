@@ -5,7 +5,6 @@ frappe.query_reports["WhatsApp Message Status"] = {
             "label": __("Campaign"),
             "fieldtype": "Link",
             "options": "Bulk WhatsApp Message",
-            "reqd": 1,
         },
         {
             "fieldname": "status",

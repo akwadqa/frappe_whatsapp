@@ -26,9 +26,6 @@ STATUS_FILTER_MAP = {
 def execute(filters=None):
     filters = frappe._dict(filters or {})
 
-    if not filters.get("campaign"):
-        frappe.throw(_("Please select a Campaign to view its messages"))
-
     columns = get_columns()
     data = get_data(filters)
     counts = get_counts(filters)
@@ -81,7 +78,10 @@ def get_columns():
 
 
 def get_data(filters):
-    query_filters = {"bulk_message_reference": filters.campaign}
+    query_filters = {}
+
+    if filters.get("campaign"):
+        query_filters["bulk_message_reference"] = filters.campaign
 
     if filters.get("status"):
         query_filters["status"] = ["in", STATUS_FILTER_MAP.get(filters.status, [filters.status])]
@@ -108,7 +108,10 @@ def get_data(filters):
 
 
 def get_counts(filters):
-    query_filters = {"bulk_message_reference": filters.campaign}
+    query_filters = {}
+
+    if filters.get("campaign"):
+        query_filters["bulk_message_reference"] = filters.campaign
 
     total = frappe.db.count("WhatsApp Message", query_filters)
     sent = frappe.db.count("WhatsApp Message", {**query_filters, "status": ["in", SENT_STATUSES]})
