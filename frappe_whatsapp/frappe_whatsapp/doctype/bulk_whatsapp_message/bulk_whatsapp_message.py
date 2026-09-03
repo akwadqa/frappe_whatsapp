@@ -72,7 +72,7 @@ class BulkWhatsAppMessage(Document):
                 self.doctype,
                 self.name,
                 "process_batch",
-                queue="long",
+                queue="whatsapp",
                 timeout=900,
                 recipients=batch
             )
@@ -90,10 +90,44 @@ class BulkWhatsAppMessage(Document):
     def process_batch(self, recipients):
         success = 0
         failed = 0
-        
+
+        # Cache: pre-load the shared account + template ONCE per batch and reuse
+        # for every recipient. These never change within a batch, so this removes
+        # the redundant 1x (account) + 2x (template) SELECTs per message.
+        cached_account = None
+        cached_account_token = None
+        if self.whatsapp_account:
+            cached_account = frappe.get_doc("WhatsApp Account", self.whatsapp_account)
+            cached_account_token = cached_account.get_password("token")
+
+        cached_template = None
+        if self.use_template and self.template:
+            cached_template = frappe.get_doc("WhatsApp Templates", self.template)
+
+        # QUERY COUNT INSIDE THIS LOOP - ONE message (simple text-only template,
+        # body params from recipient_data -> custom_ref_doc, no header / no buttons),
+        # AFTER caching the shared account + template once per batch:
+        #
+        #   send_template()                           whatsapp_message.py
+        #     uses cached template                   0x SELECT  (cached)
+        #   notify()                                 0x SELECT  (cached account)
+        #     make_post_request(...)                  HTTP to Meta (NOT a DB query)
+        #     db_set("message_id",...)                 1x UPDATE
+        #   create_whatsapp_profile()                  1x SELECT  (db.exists "WhatsApp Profiles")
+        #     insert profile (first time only)         1x INSERT
+        #   wa_message.insert() -> db_insert()         1x INSERT  (tabWhatsApp Message)
+        #
+        # TOTAL per message (cached):   3 queries (profile exists)  -> no INSERT
+        #                               4 queries (new number)      -> +1 INSERT profile
+        # plus 1 HTTP POST to Meta (dominant cost, ~200-500ms, sequential).
         for r in recipients:
             try:
-                self.create_message_record(r)
+                self.create_message_record(
+                    r,
+                    cached_account=cached_account,
+                    cached_account_token=cached_account_token,
+                    cached_template=cached_template,
+                )
                 success += 1
             except Exception:
                 frappe.log_error("Bulk WhatsApp Batch Error", frappe.get_traceback())
@@ -101,15 +135,16 @@ class BulkWhatsAppMessage(Document):
 
             time.sleep(THROTTLE_DELAY)
 
+        # ── OUTSIDE THE LOOP (once per batch, NOT per message) ──
         frappe.db.sql("""
             UPDATE `tabBulk WhatsApp Message`
             SET sent_count = sent_count + %s
             WHERE name = %s
-            """, (success, self.name))
-        
-        self.update_status()
+            """, (success, self.name))       # 1x UPDATE
+
+        self.update_status()                # 3x SELECT COUNT (see update_status)
     
-    def create_message_record(self, recipient):
+    def create_message_record(self, recipient, cached_account=None, cached_account_token=None, cached_template=None):
         wa_message = frappe.new_doc("WhatsApp Message")
         wa_message.to = recipient.get("mobile_number")
         #wa_message.type = "Outgoing"
@@ -119,6 +154,14 @@ class BulkWhatsAppMessage(Document):
 
         if self.whatsapp_account:
             wa_message.whatsapp_account = self.whatsapp_account
+
+        # Attach cached docs so whatsapp_message.send_template/notify reuse them
+        # instead of re-loading (see inline cacheable notes in whatsapp_message.py).
+        if cached_account:
+            wa_message.flags._cached_account = cached_account
+            wa_message.flags._cached_account_token = cached_account_token
+        if cached_template:
+            wa_message.flags._cached_template = cached_template
 
         if recipient.get("recipient_data"):
             try:
@@ -144,20 +187,29 @@ class BulkWhatsAppMessage(Document):
         
         if self.attach:
             wa_message.attach = self.attach
-        
+
+        # ── THIS INSERT TRIGGERS THE PER-MESSAGE DB QUERIES (see process_batch) ──
+        # Simple text-only template (account + template now cached per batch):
+        #   send_template()           uses cached template  0x SELECT
+        #   notify()                  uses cached account   0x SELECT
+        #                            make_post_request      HTTP POST (not DB)
+        #                            db_set message_id     1x UPDATE
+        #   create_whatsapp_profile() db.exists Profiles    1x SELECT (+ 1x INSERT new number)
+        #   db_insert()               INSERT Message        1x INSERT
+        # TOTAL: 3 queries (exists) / 4 queries (new number) + 1 HTTP POST.
         wa_message.insert(ignore_permissions=True)
 
     def update_status(self):
         total = self.recipient_count
-        sent = frappe.db.count("WhatsApp Message", {
+        sent = frappe.db.count("WhatsApp Message", {   # 1x SELECT COUNT
             "bulk_message_reference": self.name,
             "status": ["in", SENT_STATUSES],
         })
-        failed = frappe.db.count("WhatsApp Message", {
+        failed = frappe.db.count("WhatsApp Message", {  # 1x SELECT COUNT
             "bulk_message_reference": self.name,
             "status": ["in", FAILED_STATUSES],
         })
-        queued = frappe.db.count("WhatsApp Message", {
+        queued = frappe.db.count("WhatsApp Message", {  # 1x SELECT COUNT
             "bulk_message_reference": self.name,
             "status": ["in", QUEUED_STATUSES],
         })
@@ -185,7 +237,7 @@ class BulkWhatsAppMessage(Document):
                 self.doctype,
                 self.name,
                 "resend_single_message",
-                "long",
+                "whatsapp",
                 4000,
                 message_name=msg.name,
             )
