@@ -14,7 +14,7 @@
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Message Status",
  "owner": "Administrator",
- "prepared_report": 0,
+ "prepared_report": 1,
  "ref_doctype": "WhatsApp Message",
  "report_name": "WhatsApp Message Status",
  "report_type": "Script Report",

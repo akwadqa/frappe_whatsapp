@@ -77,11 +77,24 @@ def get_columns():
     ]
 
 
-def get_data(filters):
+def get_base_filters(filters):
     query_filters = {}
+
+    if filters.get("from_date") and filters.get("to_date"):
+        query_filters["creation"] = ["between", [filters.from_date, filters.to_date]]
+    elif filters.get("from_date"):
+        query_filters["creation"] = [">=", filters.from_date]
+    elif filters.get("to_date"):
+        query_filters["creation"] = ["<=", filters.to_date]
 
     if filters.get("campaign"):
         query_filters["bulk_message_reference"] = filters.campaign
+
+    return query_filters
+
+
+def get_query_filters(filters):
+    query_filters = get_base_filters(filters)
 
     if filters.get("status"):
         query_filters["status"] = ["in", STATUS_FILTER_MAP.get(filters.status, [filters.status])]
@@ -91,6 +104,12 @@ def get_data(filters):
 
     if filters.get("recipient"):
         query_filters["to"] = ["like", f"%{filters.recipient}%"]
+
+    return query_filters
+
+
+def get_data(filters):
+    query_filters = get_query_filters(filters)
 
     rows = frappe.get_all(
         "WhatsApp Message",
@@ -108,10 +127,9 @@ def get_data(filters):
 
 
 def get_counts(filters):
-    query_filters = {}
-
-    if filters.get("campaign"):
-        query_filters["bulk_message_reference"] = filters.campaign
+    # Summary buckets ignore the status filter (so all buckets stay visible)
+    # but still respect date range and campaign to avoid full-table scans.
+    query_filters = get_base_filters(filters)
 
     total = frappe.db.count("WhatsApp Message", query_filters)
     sent = frappe.db.count("WhatsApp Message", {**query_filters, "status": ["in", SENT_STATUSES]})
