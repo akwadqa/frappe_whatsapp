@@ -8,12 +8,26 @@ from frappe.model.document import Document
 class WhatsAppRecipientList(Document):
 	def validate(self):
 		self.validate_recipients()
-	
+		self.validate_occasion()
+
 	def validate_recipients(self):
 		if not self.is_new():
 			if not self.recipients:
 				frappe.throw(_("At least one recipient is required"))
-	
+
+	def validate_occasion(self):
+		if not self.recipients:
+			return
+
+		for row in self.recipients:
+			if not row.occasion_invitee:
+				continue
+			invitee_occasion = frappe.db.get_value("Occasion Invitee", row.occasion_invitee, "occasion")
+			if invitee_occasion != self.occasion:
+				frappe.throw(
+					_("Occasion of Invitee <b>{0}</b> must match the Occasion of this list.").format(row.occasion_invitee)
+				)
+
 	def import_list_from_doctype(self, doctype, mobile_field, name_field=None, filters=None, limit=None, data_fields=None):
 		"""Import recipients from another DocType"""
 		self.doctype_to_import = doctype
@@ -28,6 +42,8 @@ class WhatsAppRecipientList(Document):
 		fields = [mobile_field]
 		if name_field:
 			fields.append(name_field)
+		if self.doctype_to_import == "Occasion Invitee":
+			fields.append("name")
 		if data_fields:
 			meta = frappe.get_meta(doctype)
 			meta_fieldnames = {f.fieldname for f in meta.fields}
@@ -74,7 +90,10 @@ class WhatsAppRecipientList(Document):
 			
 			if name_field and record.get(name_field):
 				recipient["recipient_name"] = record.get(name_field)
-				
+
+			if self.doctype_to_import == "Occasion Invitee" and record.get("name"):
+				recipient["occasion_invitee"] = record.get("name")
+
 			self.append("recipients", recipient)
 		
 		return len(self.recipients)

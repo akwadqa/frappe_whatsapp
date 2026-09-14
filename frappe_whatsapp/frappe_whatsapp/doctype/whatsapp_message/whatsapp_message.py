@@ -92,13 +92,18 @@ class WhatsAppMessage(Document):
             if self.is_reply and self.reply_to_message_id:
                 data["context"] = {"message_id": self.reply_to_message_id}
             if self.content_type in ["document", "image", "video"]:
-                data[self.content_type.lower()] = {
-                    "link": link,
-                    "caption": self.message,
-                }
+                if self.content_type == "image" and self.media_id:
+                    data["image"] = {"id": self.media_id}
+                    if self.message:
+                        data["image"]["caption"] = self.message
+                else:
+                    data[self.content_type.lower()] = {
+                        "link": link,
+                        "caption": self.message,
+                    }
 
-                if self.content_type == "document":
-                    data["document"]["filename"] = file_name
+                    if self.content_type == "document":
+                        data["document"]["filename"] = file_name
 
             elif self.content_type == "reaction":
                 data["reaction"] = {
@@ -108,11 +113,19 @@ class WhatsAppMessage(Document):
             elif self.content_type == "text":
                 data["text"] = {"preview_url": True, "body": self.message}
 
-            elif self.content_type == "audio":                
+            elif self.content_type == "audio":
                 if ext and ext == ".webm":
                     data["document"] = {"link": link}
                 else:
                     data["audio"] = {"link": link}
+
+            elif self.content_type == "location":
+                data["location"] = {
+                    "latitude": self.latitude,
+                    "longitude": self.longitude,
+                    "name": self.location_name,
+                    "address": self.location_address,
+                }
 
             elif self.content_type == "interactive":
                 # Interactive message (buttons or list)

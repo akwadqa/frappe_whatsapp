@@ -12,6 +12,7 @@
   "section_recipients",
   "recipient_type",
   "recipient_list",
+  "occasion",
   "recipient_count",
   "column_break_xvnh",
   "recipients",
@@ -77,6 +78,16 @@
    "options": "WhatsApp Recipient List"
   },
   {
+   "depends_on": "eval: doc.recipient_list",
+   "fetch_from": "recipient_list.occasion",
+   "fieldname": "occasion",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Occasion",
+   "options": "Occasion",
+   "read_only": 1
+  },
+  {
    "fieldname": "recipient_count",
    "fieldtype": "Int",
    "label": "Recipient Count",
@@ -96,6 +107,7 @@
   {
    "depends_on": "eval:doc.use_template==1",
    "description": "Make sure that Template variables are same as Recipient data fields",
+   "fetch_from": "occasion.invite_template",
    "fieldname": "template",
    "fieldtype": "Link",
    "label": "Template",

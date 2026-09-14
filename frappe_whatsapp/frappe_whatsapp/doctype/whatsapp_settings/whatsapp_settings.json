@@ -8,7 +8,8 @@
  "field_order": [
   "default_incoming_account",
   "column_break_xsuw",
-  "default_outgoing_account"
+  "default_outgoing_account",
+  "whatsapp_messages_limit"
  ],
  "fields": [
   {
@@ -26,6 +27,11 @@
   {
    "fieldname": "column_break_skjo",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "whatsapp_messages_limit",
+   "fieldtype": "Int",
+   "label": "Whatsapp Messages Limit"
   }
  ],
  "grid_page_length": 50,

@@ -5,6 +5,7 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "occasion_invitee",
   "mobile_number",
   "recipient_name",
   "recipient_data"
@@ -30,6 +31,13 @@
    "fieldtype": "Code",
    "label": "Recipient Data",
    "options": "JSON"
+  },
+  {
+   "fieldname": "occasion_invitee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Occasion Invitee",
+   "options": "Occasion Invitee"
   }
  ],
  "index_web_pages_for_search": 1,

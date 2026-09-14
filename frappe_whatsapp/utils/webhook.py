@@ -3,8 +3,12 @@ import frappe
 import json
 import requests
 import time
+import base64
+import io
+import re
 from frappe import _
 from werkzeug.wrappers import Response
+from PIL import Image
 import frappe.utils
 
 from frappe_whatsapp.utils import get_whatsapp_account
@@ -263,6 +267,7 @@ def post():
 					"profile_name":sender_profile_name,
 					"whatsapp_account":whatsapp_account.name
 				}).insert(ignore_permissions=True)
+				update_invitee_rsvp_status(reply_to_message_id, message['button']['text'])
 			else:
 				frappe.get_doc({
 					"doctype": "WhatsApp Message",
@@ -328,3 +333,195 @@ def update_message_status(data):
 		values,
 		update_modified=False
 	)
+
+	# Update Occasion Invitee RSVP status
+	occasion_invitee = frappe.db.get_value("WhatsApp Message", name, "occasion_invitee")
+	if occasion_invitee and frappe.db.exists("Occasion Invitee", occasion_invitee):
+		occ_inv_doc = frappe.get_doc("Occasion Invitee", occasion_invitee)
+		if occ_inv_doc.rsvp_status in ["Not Sent", "Failed"] and not occ_inv_doc.ticket_id:
+			if status == "sent":
+				occ_inv_doc.rsvp_status = "Pending"
+			elif status == "failed":
+				occ_inv_doc.rsvp_status = "Failed"
+
+			occ_inv_doc.save(ignore_permissions=True)
+
+
+def update_invitee_rsvp_status(message_id, reply):
+	"""Update RSVP status of an Occasion Invitee based on a WhatsApp template quick-reply."""
+
+	try:
+		if not message_id:
+			frappe.log_error(
+				title="Missing message_id",
+				message="update_invitee_rsvp_status was called without a message_id"
+			)
+			return
+
+		occasion_invitee = frappe.db.get_value(
+			"WhatsApp Message",
+			filters={"message_id": message_id},
+			fieldname="occasion_invitee"
+		)
+		if not occasion_invitee:
+			frappe.log_error(
+				title="No invitee found",
+				message=f"No invitee found for message_id={message_id}"
+			)
+			return
+
+		status_map = {
+			"تأكيد": "Confirmed",
+			"اعتذار": "Declined",
+			"موقع المناسبة": "Location"
+		}
+		new_status = status_map.get(reply)
+		if not new_status:
+			frappe.log_error(
+				title="Unrecognized reply",
+				message=f"Unrecognized reply: {reply}"
+			)
+			return
+
+		doc = frappe.get_doc("Occasion Invitee", occasion_invitee)
+		doc.rsvp_status = new_status if new_status in ["Confirmed", "Declined"] else doc.rsvp_status
+
+		# Check if QR code is required and generate ticket_id
+		requires_qr_code = frappe.db.get_value("Occasion", doc.occasion, "requires_qr_code")
+		if requires_qr_code and new_status == "Confirmed" and not doc.ticket_id:
+			doc.ticket_id = message_id
+
+		doc.save(ignore_permissions=True)
+		frappe.db.commit()
+
+		# Handle sending response messages
+		def send_whatsapp_message(template, extra_fields=None):
+			"""Helper to create outgoing WhatsApp message"""
+			message_data = {
+				"doctype": "WhatsApp Message",
+				"type": "Outgoing",
+				"to": doc.whatsapp_number,
+				"occasion_invitee": doc.name,
+				"message_type": "Template",
+				"use_template": 1,
+				"template": template,
+				"reference_doctype": "Occasion Invitee",
+				"reference_name": doc.name
+			}
+			if extra_fields:
+				message_data.update(extra_fields)
+			frappe.get_doc(message_data).insert(ignore_permissions=True)
+
+		if new_status == "Confirmed":
+			confirmed_template = frappe.db.get_value("Occasion", doc.occasion, "confirmed_template")
+			if confirmed_template:
+				if doc.qr_raw_data:
+					# Upload QR code to WABA and send with media_id
+					doc.media_id = upload_base64_png_to_waba(doc.qr_raw_data)
+					send_whatsapp_message(confirmed_template, {
+						"content_type": "image",
+						"media_id": doc.media_id,
+					})
+				else:
+					# Send template without image
+					send_whatsapp_message(confirmed_template)
+
+				doc.replied = 1
+				doc.save(ignore_permissions=True)
+				frappe.db.commit()
+
+		elif new_status == "Declined":
+			declined_template = frappe.db.get_value("Occasion", doc.occasion, "declined_template")
+			if declined_template:
+				send_whatsapp_message(declined_template)
+				doc.replied = 1
+				doc.save(ignore_permissions=True)
+				frappe.db.commit()
+		elif new_status == "Location":
+			map_link = frappe.db.get_value("Occasion", doc.occasion, "map_link")
+			location_name = frappe.db.get_value("Occasion", doc.occasion, "location_name")
+			location_address = frappe.db.get_value("Occasion", doc.occasion, "location_address")
+			info = extract_google_maps_info(map_link)
+			if info.get("latitude") and info.get("longitude"):
+				message_data = {
+					"doctype": "WhatsApp Message",
+					"type": "Outgoing",
+					"to": doc.whatsapp_number,
+					"occasion_invitee": doc.name,
+					"content_type": "location",
+					"latitude": info.get("latitude"),
+					"longitude": info.get("longitude"),
+					"location_name": location_name,
+					"location_address": location_address,
+					"reference_doctype": "Occasion",
+					"reference_name": doc.occasion
+				}
+				frappe.get_doc(message_data).insert(ignore_permissions=True)
+				frappe.db.commit()
+			else:
+				frappe.log_error(
+					title="Missing Location Info",
+					message=f"Missing location info for Occasion {doc.occasion}"
+				)
+			return
+	except Exception as e:
+		frappe.db.rollback()
+		frappe.log_error(
+			title="RSVP Update Failed",
+			message=f"message_id={message_id}, reply={reply}, error={str(e)}"
+		)
+
+
+def upload_base64_png_to_waba(b64_png: str) -> str:
+	"""Uploads a PNG to WABA and returns media_id."""
+	whatsapp_account = get_whatsapp_account(account_type="outgoing")
+	if not whatsapp_account:
+		frappe.throw(_("No default outgoing WhatsApp Account configured"))
+
+	token = whatsapp_account.get_password("token")
+	url = f"{whatsapp_account.url}/{whatsapp_account.version}/{whatsapp_account.phone_id}/media"
+
+	png_bytes = normalize_png(b64_png)
+	files = {"file": ("qr.png", io.BytesIO(png_bytes), "image/png")}
+	data = {"messaging_product": "whatsapp"}
+	headers = {"Authorization": f"Bearer {token}"}
+
+	resp = requests.post(url, headers=headers, data=data, files=files, timeout=30)
+	resp.raise_for_status()
+	return resp.json()["id"]
+
+
+def normalize_png(b64_png: str) -> bytes:
+	"""Ensure PNG is RGB 8-bit and return clean binary."""
+	raw = base64.b64decode(b64_png.split(",", 1)[1] if "," in b64_png else b64_png)
+	im = Image.open(io.BytesIO(raw))
+
+	if im.mode not in ("RGB", "RGBA"):
+		im = im.convert("RGB")
+
+	buf = io.BytesIO()
+	im.save(buf, format="PNG")   # Pillow will default to 8-bit RGB/ RGBA
+	return buf.getvalue()
+
+
+def extract_google_maps_info(url):
+	"""Extracts latitude, longitude from a Google Maps URL."""
+
+	# Extract lat/lng from !3dLAT!4dLNG pattern (more accurate than @lat,lng)
+	coord_match = re.search(r'!3d([-+]?[0-9]*\.?[0-9]+)!4d([-+]?[0-9]*\.?[0-9]+)', url or "")
+	if coord_match:
+		lat = float(coord_match.group(1))
+		lng = float(coord_match.group(2))
+	else:
+		# fallback to @lat,lng pattern
+		at_match = re.search(r'@([-+]?[0-9]*\.?[0-9]+),([-+]?[0-9]*\.?[0-9]+)', url or "")
+		if at_match:
+			lat = float(at_match.group(1))
+			lng = float(at_match.group(2))
+		else:
+			lat = lng = None
+
+	return {
+		"latitude": lat,
+		"longitude": lng
+	}

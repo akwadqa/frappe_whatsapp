@@ -27,6 +27,8 @@
   "conversation_id",
   "content_type",
   "attach",
+  "media_id",
+  "occasion_invitee",
   "caption",
   "buttons",
   "body_param",
@@ -42,6 +44,12 @@
   "section_break_iyjf",
   "is_reply",
   "reply_to_message_id",
+  "location_details_section",
+  "location_name",
+  "location_address",
+  "column_break_ldlm",
+  "latitude",
+  "longitude",
   "section_break_dhba",
   "reference_doctype",
   "bulk_message_reference",
@@ -177,6 +185,21 @@
    "label": "Attach"
   },
   {
+   "depends_on": "eval: doc.content_type =='image'",
+   "fieldname": "media_id",
+   "fieldtype": "Data",
+   "label": "Media ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "occasion_invitee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Occasion Invitee",
+   "options": "Occasion Invitee",
+   "read_only": 1
+  },
+  {
    "fieldname": "caption",
    "fieldtype": "HTML Editor",
    "label": "Caption"
@@ -203,6 +226,38 @@
    "fieldname": "reply_to_message_id",
    "fieldtype": "Data",
    "label": "Reply To Message ID"
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval: doc.content_type == \"location\"",
+   "fieldname": "location_details_section",
+   "fieldtype": "Section Break",
+   "label": "Location Details",
+   "mandatory_depends_on": "eval: doc.content_type == \"location\""
+  },
+  {
+   "fieldname": "location_name",
+   "fieldtype": "Data",
+   "label": "Location Name"
+  },
+  {
+   "fieldname": "location_address",
+   "fieldtype": "Data",
+   "label": "Location Address"
+  },
+  {
+   "fieldname": "column_break_ldlm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Latitude"
+  },
+  {
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Longitude"
   },
   {
    "fieldname": "section_break_dhba",
