@@ -1,5 +1,5 @@
 [project]
-name = "frappe_whatsapp_new"
+name = "frappe_whatsapp"
 authors = [
     { name = "Shridhar Patil", email = "shrip.dev@gmail.com"}
 ]
