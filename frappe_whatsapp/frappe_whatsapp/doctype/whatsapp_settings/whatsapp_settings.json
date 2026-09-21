@@ -7,8 +7,9 @@
  "engine": "InnoDB",
  "field_order": [
   "default_incoming_account",
-  "column_break_xsuw",
   "default_outgoing_account",
+  "otp_authentication_template",
+  "whatsapp_messages_limit",
   "rsvp_section",
   "confirm_reply_en",
   "decline_reply_en",
@@ -28,6 +29,13 @@
    "fieldtype": "Link",
    "label": "Default Outgoing Account",
    "options": "WhatsApp Account"
+  },
+  {
+   "description": "WhatsApp template used to send login OTP messages.",
+   "fieldname": "otp_authentication_template",
+   "fieldtype": "Link",
+   "label": "OTP Authentication Template",
+   "options": "WhatsApp Templates"
   },
   {
    "fieldname": "column_break_skjo",
@@ -61,13 +69,18 @@
    "fieldname": "decline_reply_ar",
    "fieldtype": "Small Text",
    "label": "Decline Reply (Arabic)"
+  },
+  {
+   "fieldname": "whatsapp_messages_limit",
+   "fieldtype": "Int",
+   "label": "Whatsapp Messages Limit"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-12-01 13:22:14.262545",
+ "modified": "2026-09-16 16:47:50.399944",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Settings",
