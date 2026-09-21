@@ -108,6 +108,14 @@ class WhatsAppMessage(Document):
             elif self.content_type == "text":
                 data["text"] = {"preview_url": True, "body": self.message}
 
+            elif self.content_type == "location":
+                data["location"] = {
+                    "latitude": self.latitude,
+                    "longitude": self.longitude,
+                    "name": self.location_name,
+                    "address": self.location_address,
+                }
+
             elif self.content_type == "audio":                
                 if ext and ext == ".webm":
                     data["document"] = {"link": link}
