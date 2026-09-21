@@ -363,6 +363,59 @@ def update_message_status(data):
 		frappe.log_error("error in updating message status", frappe.get_traceback())
 
 
+def confirm_invitee(doc, ticket_id=None):
+	# Mark an Occasion Invitee as Confirmed and send the QR ticket
+	
+	doc.rsvp_status = "Confirmed"
+
+	qr_delivery = frappe.db.get_value("Occasion", doc.occasion, "qr_delivery")
+	if qr_delivery != "Disabled" and ticket_id and not doc.ticket_id:
+		doc.ticket_id = ticket_id
+
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+
+	try:
+		if doc.qr_raw_data:
+			context = {
+				"title": "Personal access card",
+				"subtitle": "Please show code to enter",
+				"subtitle_ar": "يرجى إبراز الكود للدخول",
+				"qr_image_url": doc.qr_raw_data,
+				"brand_en": "KROOT",
+				"brand_ar": "كروت",
+				"guest_count": doc.party_size,
+				"website": "www.kroot.com",
+			}
+
+			base64_card = generate_qr_card(
+				"frappe_whatsapp/templates/QR_Code_template_Kroot.html", context
+			)
+			file_url = _save_qr_card_file(base64_card, doc)
+
+			frappe.get_doc({
+				"doctype": "WhatsApp Message",
+				"type": "Outgoing",
+				"to": doc.whatsapp_number,
+				"occasion_invitee": doc.name,
+				"occasion": doc.occasion,
+				"message_type": "Manual",
+				"reference_doctype": "Occasion Invitee",
+				"reference_name": doc.name,
+				"content_type": "image",
+				"attach": file_url
+			}).insert(ignore_permissions=True)
+
+			doc.replied = 1
+			doc.save(ignore_permissions=True)
+			frappe.db.commit()
+
+	except Exception as e:
+		frappe.log_error("error in sending qr image", str(e))
+
+	return doc
+
+
 def update_invitee_rsvp_status(message_id, reply):
 	"""Update RSVP status of an Occasion Invitee based on WhatsApp reply.
 
@@ -413,15 +466,13 @@ def update_invitee_rsvp_status(message_id, reply):
 			return
 
 		doc = frappe.get_doc("Occasion Invitee", occasion_invitee)
-		doc.rsvp_status = new_status if new_status in ["Confirmed", "Declined"] else doc.rsvp_status
 
-		# Check if QR code is required and generate ticket_id
-		requires_qr_code = frappe.db.get_value("Occasion", doc.occasion, "requires_qr_code")
-		if requires_qr_code and new_status == "Confirmed" and not doc.ticket_id:
-			doc.ticket_id = message_id
-
-		doc.save(ignore_permissions=True)
-		frappe.db.commit()
+		if new_status == "Confirmed":
+			doc = confirm_invitee(doc, ticket_id=message_id)
+		else:
+			doc.rsvp_status = new_status if new_status in ["Confirmed", "Declined"] else doc.rsvp_status
+			doc.save(ignore_permissions=True)
+			frappe.db.commit()
 
 		settings = frappe.get_single("WhatsApp Settings")
 		language = frappe.db.get_value("Occasion", doc.occasion, "language")
@@ -429,7 +480,7 @@ def update_invitee_rsvp_status(message_id, reply):
 		if language == "Arabic":
 			confirm_text = (settings.get("confirm_reply_ar") or "").strip()
 			decline_text = (settings.get("decline_reply_ar") or "").strip()
-		elif language == "English":
+		else:
 			confirm_text = (settings.get("confirm_reply_en") or "").strip()
 			decline_text = (settings.get("decline_reply_en") or "").strip()
 
@@ -447,46 +498,7 @@ def update_invitee_rsvp_status(message_id, reply):
 				"reference_name": doc.name
 			}).insert(ignore_permissions=True)
 
-		if new_status == "Confirmed":
-			try:
-				if doc.qr_raw_data:
-					context = {
-						"title": "Personal access card",
-						"subtitle": "Please show code to enter",
-						"subtitle_ar": "يرجى إبراز الكود للدخول",
-						"qr_image_url": doc.qr_raw_data,
-						"brand_en": "KROOT",
-						"brand_ar": "كروت",
-						"guest_count": doc.party_size,
-						"website": "www.kroot.com",
-					}
-
-					base64_card = generate_qr_card(
-						"frappe_whatsapp/templates/QR_Code_template_Kroot.html", context
-					)
-					file_url = _save_qr_card_file(base64_card, doc)
-
-					frappe.get_doc({
-						"doctype": "WhatsApp Message",
-						"type": "Outgoing",
-						"to": doc.whatsapp_number,
-						"occasion_invitee": doc.name,
-						"occasion": doc.occasion,
-						"message_type": "Manual",
-						"reference_doctype": "Occasion Invitee",
-						"reference_name": doc.name,
-						"content_type": "image",
-						"attach": file_url
-					}).insert(ignore_permissions=True)
-
-					doc.replied = 1
-					doc.save(ignore_permissions=True)
-					frappe.db.commit()
-
-			except Exception as e:
-				frappe.log_error("error in sending qr image", str(e))
-
-		elif new_status == "Declined":
+		if new_status == "Declined":
 			try:
 				if decline_text:
 					send_text_message(decline_text)

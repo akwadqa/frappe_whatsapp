@@ -10,6 +10,7 @@
   "image",
   "column_break_iwrm",
   "title",
+  "qr_delivery",
   "timeline_section",
   "from",
   "date",
@@ -119,7 +120,6 @@
    "depends_on": "eval: doc.confirmed_template",
    "fieldname": "requires_qr_code",
    "fieldtype": "Check",
-   "hidden": 1,
    "label": "Requires QR Code"
   },
   {
@@ -196,6 +196,12 @@
    "fieldname": "longitude",
    "fieldtype": "Data",
    "label": "Longitude"
+  },
+  {
+   "fieldname": "qr_delivery",
+   "fieldtype": "Select",
+   "label": "QR Delivery",
+   "options": "On Confirmation\nImmediate\nDisabled"
   }
  ],
  "grid_page_length": 50,
@@ -227,11 +233,11 @@
    "link_fieldname": "occasion"
   }
  ],
- "modified": "2025-12-25 17:27:47.616755",
+ "modified": "2026-09-16 12:09:58.991322",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "Occasion",
- "naming_rule": "Expression",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {

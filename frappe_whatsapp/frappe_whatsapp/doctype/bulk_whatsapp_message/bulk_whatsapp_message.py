@@ -165,6 +165,14 @@ class BulkWhatsAppMessage(Document):
         
         wa_message.insert(ignore_permissions=True)
 
+
+        if self.occasion and recipient.get("occasion_invitee"):
+            qr_delivery = frappe.db.get_value("Occasion", self.occasion, "qr_delivery")
+            if qr_delivery == "Immediate":
+                from frappe_whatsapp.utils.webhook import confirm_invitee
+                invitee_doc = frappe.get_doc("Occasion Invitee", recipient.get("occasion_invitee"))
+                invitee_doc = confirm_invitee(invitee_doc, ticket_id=wa_message.message_id)
+
     def update_status(self):
         total = self.recipient_count
         sent = frappe.db.count("WhatsApp Message", {
