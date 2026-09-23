@@ -34,13 +34,13 @@ class WhatsAppMessage(Document):
 
     def create_whatsapp_profile(self):
         number = format_number(self.get("from") or self.to)
-        if not frappe.db.exists("WhatsApp Profiles", {"number": number}):
+        if not frappe.db.exists("WhatsApp Profiles", {"number": number}):  # 1x SELECT (not-cacheable - unique per number)
             frappe.get_doc({
                 "doctype": "WhatsApp Profiles",
                 "profile_name": self.profile_name,
                 "number": number,
                 "whatsapp_account": self.whatsapp_account
-            }).insert(ignore_permissions=True)
+            }).insert(ignore_permissions=True)  # 1x INSERT (not-cacheable - unique per number, only for new number)
 
     def set_whatsapp_account(self):
         """Set whatsapp account to default if missing"""
@@ -209,7 +209,16 @@ class WhatsAppMessage(Document):
 
     def send_template(self):
         """Send template."""
-        template = frappe.get_doc("WhatsApp Templates", self.template)
+        # Bulk path sets `flags._cached_template` to avoid re-loading the same
+        # template for every recipient in a batch (2x SELECT). Any other caller
+        # (single send, notification, retry) falls back to a fresh get_doc.
+        _cached_template = getattr(self, "flags", {}).get("_cached_template")
+        if _cached_template is not None:
+            template = _cached_template
+            _log_cache_usage("WhatsApp Templates", self.template, from_cache=True)
+        else:
+            template = frappe.get_doc("WhatsApp Templates", self.template)  # 2x SELECT (cacheable - same template for whole batch)
+            _log_cache_usage("WhatsApp Templates", self.template, from_cache=False)
         data = {
             "messaging_product": "whatsapp",
             "to": format_number(self.to),
@@ -239,7 +248,7 @@ class WhatsAppMessage(Document):
                     template_parameters.append(value)                    
 
             else:
-                ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
+                ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)  # 1x SELECT (not-cacheable - only if no body_param & no custom_ref_doc; unique per doc)
                 for field_name in field_names:
                     value = ref_doc.get_formatted(field_name.strip())
                     parameters.append({"type": "text", "text": value})
@@ -349,7 +358,7 @@ class WhatsAppMessage(Document):
                         "parameters": [{"type": "payload", "payload": btn.button_label}]
                     })
                 elif btn.button_type == "Visit Website" and btn.url_type == "Dynamic":
-                    ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
+                    ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)  # 1x SELECT (not-cacheable - dynamic URL button; unique per doc)
                     url = ref_doc.get_formatted(btn.website_url)
                     button_parameters.append({
                         "type": "button",
@@ -378,11 +387,20 @@ class WhatsAppMessage(Document):
 
     def notify(self, data):
         """Notify."""
-        whatsapp_account = frappe.get_doc(
-            "WhatsApp Account",
-            self.whatsapp_account,
-        )
-        token = whatsapp_account.get_password("token")
+        # Bulk path passes a pre-loaded account + decoded token via flags to avoid
+        # a fresh get_doc + get_password per recipient (1x SELECT). Other callers
+        # fall back to the normal load.
+        whatsapp_account = getattr(self, "flags", {}).get("_cached_account")
+        token = getattr(self, "flags", {}).get("_cached_account_token")
+        if whatsapp_account is None:
+            whatsapp_account = frappe.get_doc(
+                "WhatsApp Account",
+                self.whatsapp_account,
+            )  # 1x SELECT (cacheable - same account for whole batch)
+            token = whatsapp_account.get_password("token")
+            _log_cache_usage("WhatsApp Account", self.whatsapp_account, from_cache=False)
+        else:
+            _log_cache_usage("WhatsApp Account", self.whatsapp_account, from_cache=True)
 
         headers = {
             "authorization": f"Bearer {token}",
@@ -393,8 +411,8 @@ class WhatsAppMessage(Document):
                 f"{whatsapp_account.url}/{whatsapp_account.version}/{whatsapp_account.phone_id}/messages",
                 headers=headers,
                 data=json.dumps(data),
-            )
-            self.db_set("message_id", response["messages"][0]["id"])
+            )  # HTTP POST to Meta (not-cacheable - per-message network call, dominant cost ~200-500ms)
+            self.db_set("message_id", response["messages"][0]["id"])  # 1x UPDATE (not-cacheable - unique message_id per send)
             frappe.publish_realtime(
                 self.to,
                 {
@@ -415,7 +433,7 @@ class WhatsAppMessage(Document):
                     "template": "Text Message",
                     "meta_data": frappe.flags.integration_request.json(),
                 }
-            ).insert(ignore_permissions=True)
+            ).insert(ignore_permissions=True)  # 1x INSERT (not-cacheable - only on error; per-message log)
 
             if not self.is_new():
                 self.db_set(
@@ -475,6 +493,19 @@ class WhatsAppMessage(Document):
             res = frappe.flags.integration_request.json().get("error", {})
             error_message = res.get("Error", res.get("message"))
             frappe.log_error("WhatsApp API Error", f"{error_message}\n{res}")
+
+
+def _log_cache_usage(resource, resource_name, from_cache):
+    """Log whether a shared resource (account/template) came from the batch cache
+    or was loaded fresh from the database. Kept low-noise: only logs the first
+    load per worker request to avoid flooding the log with one entry per message."""
+    source = "CACHE" if from_cache else "DATABASE"
+    flag_key = f"_logged_{resource}_from_{source}_{resource_name}"
+    if not getattr(frappe.local, flag_key, False):
+        setattr(frappe.local, flag_key, True)
+        frappe.logger().info(
+            f"[frappe_whatsapp] {resource} '{resource_name}' loaded from {source}"
+        )
 
 
 def on_doctype_update():
