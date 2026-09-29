@@ -467,13 +467,6 @@ def update_invitee_rsvp_status(message_id, reply):
 
 		doc = frappe.get_doc("Occasion Invitee", occasion_invitee)
 
-		if new_status == "Confirmed":
-			doc = confirm_invitee(doc, ticket_id=message_id)
-		else:
-			doc.rsvp_status = new_status if new_status in ["Confirmed", "Declined"] else doc.rsvp_status
-			doc.save(ignore_permissions=True)
-			frappe.db.commit()
-
 		settings = frappe.get_single("WhatsApp Settings")
 		language = frappe.db.get_value("Occasion", doc.occasion, "language")
 		confirm_text = decline_text = None
@@ -483,7 +476,7 @@ def update_invitee_rsvp_status(message_id, reply):
 		else:
 			confirm_text = (settings.get("confirm_reply_en") or "").strip()
 			decline_text = (settings.get("decline_reply_en") or "").strip()
-
+			
 		def send_text_message(text):
 			frappe.get_doc({
 				"doctype": "WhatsApp Message",
@@ -497,6 +490,23 @@ def update_invitee_rsvp_status(message_id, reply):
 				"reference_doctype": "Occasion Invitee",
 				"reference_name": doc.name
 			}).insert(ignore_permissions=True)
+
+		if new_status == "Confirmed":
+			doc = confirm_invitee(doc, ticket_id=message_id)
+			qr_delivery = frappe.db.get_value("Occasion", doc.occasion, "qr_delivery")
+			if qr_delivery == "Disabled":
+				try:
+					if confirm_text:
+						send_text_message(confirm_text)
+					doc.replied = 1
+					doc.save(ignore_permissions=True)
+					frappe.db.commit()
+				except Exception as e:
+					frappe.log_error("error in sending confirm message", str(e))
+		else:
+			doc.rsvp_status = new_status if new_status in ["Confirmed", "Declined"] else doc.rsvp_status
+			doc.save(ignore_permissions=True)
+			frappe.db.commit()
 
 		if new_status == "Declined":
 			try:

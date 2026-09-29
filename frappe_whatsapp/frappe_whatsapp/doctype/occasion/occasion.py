@@ -11,7 +11,6 @@ class Occasion(Document):
 		self.set_qr_delivery()
 
 	def set_qr_delivery(self):
-		#qr_delivery set to "On Confirmation" whenever whatsApp template has a button of action_type "Confirm"
 		has_confirm_button = bool(
 			self.invite_template
 			and frappe.db.exists(
@@ -19,7 +18,7 @@ class Occasion(Document):
 			)
 		)
 
-		if has_confirm_button:
+		if has_confirm_button and self.qr_delivery != "Disabled":
 			self.qr_delivery = "On Confirmation"
 		elif self.qr_delivery == "On Confirmation":
-			self.qr_delivery = "Disabled"
+			self.qr_delivery = "Immediate"
