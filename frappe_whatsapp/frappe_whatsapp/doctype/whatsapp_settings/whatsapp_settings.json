@@ -34,8 +34,7 @@
    "description": "WhatsApp template used to send login OTP messages.",
    "fieldname": "otp_authentication_template",
    "fieldtype": "Data",
-   "label": "OTP Authentication Template",
-   "options": "WhatsApp Templates"
+   "label": "OTP Authentication Template"
   },
   {
    "fieldname": "column_break_skjo",
@@ -80,7 +79,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-29 11:08:34.283315",
+ "modified": "2026-09-30 11:50:54.007208",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Settings",
