@@ -178,6 +178,8 @@ def post():
 							"whatsapp_account": whatsapp_account.name
 						}
 					)
+
+					handle_survey_response(msg_doc)
 			# NEW: Handle Shopping Cart / Orders from MPM
 			elif message_type == 'order':
 				order_data = message['order']
@@ -328,3 +330,91 @@ def update_message_status(data):
 		values,
 		update_modified=False
 	)
+
+
+def handle_survey_response(doc):
+
+	try:
+		if not (doc.type == "Incoming" and doc.content_type == "flow" and doc.is_reply):
+			return
+
+		flow_response = json.loads(doc.flow_response or "{}")
+		flow_token = flow_response.get("flow_token")
+
+		survey_message_name = None
+		if flow_token:
+			survey_message_name = frappe.db.exists(
+				"WhatsApp Message", {"flow_token": flow_token, "type": "Outgoing"}
+			)
+		if not survey_message_name:
+			return
+
+		survey_message = frappe.get_doc("WhatsApp Message", survey_message_name)
+
+		# Handles direct Flow message, or Flow via Template.
+		flow_name = survey_message.flow
+		if not flow_name and survey_message.template:
+			survey_template = frappe.get_doc("WhatsApp Templates", survey_message.template)
+			flow_button = next((btn for btn in survey_template.buttons if btn.button_type == "Flow"), None)
+			flow_name = flow_button.flow if flow_button else None
+
+		if not flow_name:
+			return
+
+		survey_flow = frappe.get_doc("WhatsApp Flow", flow_name)
+
+		screen = ""
+		index = -1
+		screen_headings = {}
+		for field in survey_flow.fields:
+			if screen != field.screen:
+				screen = field.screen
+				index += 1
+			if field.field_type == "TextHeading":
+				screen_headings[index] = field.label
+
+		fields_lookup = {}
+		screen = ""
+		index = -1
+		for field in survey_flow.fields:
+			if screen != field.screen:
+				screen = field.screen
+				index += 1
+			if field.field_type != "TextHeading":
+				fields_lookup[f"screen_{index}_{field.field_name}"] = screen_headings.get(index, field.label)
+
+		survey_doc = frappe.get_doc({
+			"doctype": "WhatsApp Survey Response",
+			"document_type": survey_message.reference_doctype,
+			"document_name": survey_message.reference_name,
+			"survey_message": doc.name,
+			"survey_template": survey_message.template,
+		}).insert(ignore_permissions=True)
+
+		# add responses as child table items
+		responses = []
+		survey = dict(flow_response)
+		survey.pop("flow_token", None)
+
+		for question, answer in survey.items():
+			if isinstance(answer, list):
+				answer = ", ".join(remove_index(a) for a in answer)
+			else:
+				answer = remove_index(answer)
+			responses.append({
+				"question": fields_lookup.get(question, question),
+				"answer": answer
+			})
+
+		survey_doc.set("completed_survey", responses)
+		survey_doc.save(ignore_permissions=True)
+
+	except Exception:
+		frappe.log_error("Error in handling survey response", frappe.get_traceback())
+
+
+def remove_index(value):
+	value = str(value)
+	if len(value) > 2 and value[0].isdigit() and value[1] == "_":
+		return value[2:]
+	return value
