@@ -211,11 +211,12 @@ class WhatsAppFlow(Document):
             component["init-value"] = field.init_value
 
         # Text input specific
-        if field_type in ["TextInput", "TextArea"]:
+        if field_type == "TextInput":
             if field.min_chars:
                 component["min-chars"] = field.min_chars
             if field.max_chars:
                 component["max-chars"] = field.max_chars
+        if field_type in ["TextInput", "TextArea"]:
             if field.error_message:
                 component["error-message"] = field.error_message
 
