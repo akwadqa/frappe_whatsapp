@@ -33,6 +33,12 @@ class WhatsAppTemplates(Document):  # nosemgrep: frappe-modifying-but-not-commit
                     btn.db_set("action_type", btn.action_type)
                     frappe.db.commit()
                     frappe.msgprint(_("Button Action Type saved successfully"), alert=True, indicator="green")
+
+            # Persist display_order
+            if self.has_value_changed("display_order"):
+                self.db_set("display_order", self.display_order)
+                frappe.db.commit()
+
             self.update_template()
 
     def set_whatsapp_account(self):
