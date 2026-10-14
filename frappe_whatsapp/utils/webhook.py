@@ -9,6 +9,8 @@ import frappe.utils
 
 from frappe_whatsapp.utils import get_whatsapp_account
 
+STATUS_ORDER = ["queued", "accepted", "sent", "failed", "delivered", "read"]
+
 
 @frappe.whitelist(allow_guest=True)
 def webhook():
@@ -276,12 +278,10 @@ def post():
 				}).insert(ignore_permissions=True)
 
 	else:
-		changes = None
-		try:
-			changes = data["entry"][0]["changes"][0]
-		except KeyError:
-			changes = data["entry"]["changes"][0]
-		update_status(changes)
+		entries = data["entry"] if isinstance(data["entry"], list) else [data["entry"]]
+		for entry in entries:
+			for changes in entry.get("changes", []):
+				update_status(changes)
 	return
 
 def update_status(data):
@@ -301,15 +301,27 @@ def update_template_status(data):
 		data
 	)
 
+def is_newer_status(status, current_status):
+	"""Webhooks can arrive out of order, never move a message back."""
+	current_status = (current_status or "").lower()
+	if status not in STATUS_ORDER or current_status not in STATUS_ORDER:
+		return True
+	return STATUS_ORDER.index(status) > STATUS_ORDER.index(current_status)
+
 def update_message_status(data):
 	"""Update message status."""
-	status_data = data['statuses'][0]
+	for status_data in data.get("statuses", []):
+		update_single_message_status(status_data)
+
+def update_single_message_status(status_data):
 	id = status_data['id']
 	status = status_data['status']
 	conversation = status_data.get('conversation', {}).get('id')
-	name = frappe.db.get_value("WhatsApp Message", filters={"message_id": id})
+	name, current_status = frappe.db.get_value(
+		"WhatsApp Message", {"message_id": id}, ["name", "status"]
+	) or (None, None)
 
-	if not name:
+	if not name or not is_newer_status(status, current_status):
 		return
 
 	values = {
