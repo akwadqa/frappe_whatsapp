@@ -122,6 +122,43 @@ class TestWebhookHelpers(IntegrationTestCase):
         msg.reload()
         self.assertEqual(msg.status, "sent")
 
+    def _insert_message(self, message_id, status):
+        msg = frappe.get_doc({
+            "doctype": "WhatsApp Message",
+            "type": "Outgoing",
+            "to": "919900112235",
+            "message": "Status order test",
+            "message_id": message_id,
+            "status": status,
+            "content_type": "text",
+            "whatsapp_account": "Test WA Webhook Account",
+        })
+        msg.flags.ignore_validate = True
+        msg.db_insert()
+        frappe.db.commit()  # nosemgrep: frappe-manual-commit -- test fixture must be visible to later queries
+        return msg
+
+    def test_update_message_status_all_statuses(self):
+        """Every status in a batched webhook is applied."""
+        first = self._insert_message("wamid.webhook_batch_1", "accepted")
+        second = self._insert_message("wamid.webhook_batch_2", "accepted")
+
+        update_message_status({"statuses": [
+            {"id": "wamid.webhook_batch_1", "status": "sent"},
+            {"id": "wamid.webhook_batch_2", "status": "delivered"},
+        ]})
+
+        self.assertEqual(first.reload().status, "sent")
+        self.assertEqual(second.reload().status, "delivered")
+
+    def test_update_message_status_never_goes_back(self):
+        """A late "sent" webhook doesn't overwrite "read"."""
+        msg = self._insert_message("wamid.webhook_late_sent", "read")
+
+        update_message_status({"statuses": [{"id": "wamid.webhook_late_sent", "status": "sent"}]})
+
+        self.assertEqual(msg.reload().status, "read")
+
     def test_update_template_status(self):
         """Test update_template_status updates template status via SQL."""
         # Create a template directly
