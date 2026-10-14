@@ -200,7 +200,6 @@ class WhatsAppMessage(Document):
 
             try:
                 self.notify(data)
-                self.status = "sent"
             except Exception as e:
                 self.status = "failed"
                 frappe.throw(f"Failed to send message {str(e)}")
@@ -394,7 +393,7 @@ class WhatsAppMessage(Document):
                 headers=headers,
                 data=json.dumps(data),
             )
-            self.db_set("message_id", response["messages"][0]["id"])
+            self.db_set({"message_id": response["messages"][0]["id"], "status": "accepted"})
             frappe.publish_realtime(
                 self.to,
                 {
