@@ -200,7 +200,6 @@ class WhatsAppMessage(Document):
 
             try:
                 self.notify(data)
-                self.status = "sent"
             except Exception as e:
                 self.status = "failed"
                 frappe.throw(f"Failed to send message {str(e)}")
@@ -412,7 +411,7 @@ class WhatsAppMessage(Document):
                 headers=headers,
                 data=json.dumps(data),
             )  # HTTP POST to Meta (not-cacheable - per-message network call, dominant cost ~200-500ms)
-            self.db_set("message_id", response["messages"][0]["id"])  # 1x UPDATE (not-cacheable - unique message_id per send)
+            self.db_set({"message_id": response["messages"][0]["id"], "status": "accepted"})  # 1x UPDATE (not-cacheable - unique message_id per send)
             frappe.publish_realtime(
                 self.to,
                 {

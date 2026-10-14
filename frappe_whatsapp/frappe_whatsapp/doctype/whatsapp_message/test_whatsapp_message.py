@@ -103,7 +103,7 @@ class TestWhatsAppMessage(IntegrationTestCase):
         doc.insert(ignore_permissions=True)
 
         self.assertEqual(doc.message_id, "wamid.test_outgoing_1")
-        self.assertEqual(doc.status, "Success")
+        self.assertEqual(doc.status, "accepted")
 
         # Verify the API was called with correct data
         call_args = mock_post.call_args
