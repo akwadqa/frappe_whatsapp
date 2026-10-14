@@ -99,6 +99,8 @@ class BulkWhatsAppMessage(Document):
                 frappe.log_error("Bulk WhatsApp Batch Error", frappe.get_traceback())
                 failed += 1
 
+            # Make the message visible to status webhooks right away
+            frappe.db.commit()  # nosemgrep
             time.sleep(THROTTLE_DELAY)
 
         frappe.db.sql("""
