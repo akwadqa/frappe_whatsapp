@@ -147,7 +147,8 @@
    "fieldname": "message_id",
    "fieldtype": "Data",
    "label": "Message ID",
-   "read_only": 1
+   "read_only": 1,
+   "search_index": 1
   },
   {
    "fieldname": "local_message_id",
@@ -311,7 +312,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-30 16:18:02.455955",
+ "modified": "2026-10-14 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Message",

@@ -109,7 +109,7 @@ def get_data(filters):
          # Get read count
         row["sent_count"] = frappe.db.count("WhatsApp Message", {
             "bulk_message_reference": row.name,
-            "status": ["in", ["sent", "Success"]]
+            "status": ["in", ["accepted", "sent", "Success"]]
         })
 
         # Get failed count

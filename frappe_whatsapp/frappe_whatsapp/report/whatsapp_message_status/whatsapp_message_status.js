@@ -42,7 +42,7 @@ frappe.query_reports["WhatsApp Message Status"] = {
         if (column.fieldname === "status_label") {
             const color = {
                 queued: "orange", Queued: "orange",
-                sent: "green", Success: "green", delivered: "green", read: "green",
+                accepted: "green", sent: "green", Success: "green", delivered: "green", read: "green",
                 failed: "red", Failed: "red",
             }[data.status] || "gray";
             value = `<span class="indicator-pill ${color} filterable" data-value="${data.status_label}">
