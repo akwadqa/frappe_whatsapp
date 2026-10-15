@@ -197,7 +197,7 @@ class TestBulkWhatsAppMessage(IntegrationTestCase):
 
     @patch("frappe_whatsapp.frappe_whatsapp.doctype.whatsapp_message.whatsapp_message.make_post_request")
     def test_resend_single_message(self, mock_post):
-        """Test the worker entry actually re-sends and persists Success."""
+        """Test the worker entry actually re-sends and persists accepted."""
         mock_post.return_value = {
             "messages": [{"id": "wamid.bulk_retry_1"}],
         }
@@ -222,7 +222,7 @@ class TestBulkWhatsAppMessage(IntegrationTestCase):
         doc.resend_single_message(failed_msg.name)
 
         failed_msg.reload()
-        self.assertEqual(failed_msg.status, "Success")
+        self.assertEqual(failed_msg.status, "accepted")
         self.assertEqual(failed_msg.message_id, "wamid.bulk_retry_1")
         mock_post.assert_called_once()
 
