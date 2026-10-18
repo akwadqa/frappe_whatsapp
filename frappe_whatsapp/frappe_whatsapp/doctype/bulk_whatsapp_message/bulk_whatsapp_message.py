@@ -4,10 +4,16 @@
 import frappe
 from frappe import _
 import json
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import requests
 from frappe.utils import cint, get_datetime, now_datetime
 from frappe.model.document import Document
 from frappe.model.naming import make_autoname
+
+from frappe_whatsapp.utils import get_whatsapp_account
 
 # Add these files to your frappe_whatsapp app
 
@@ -17,6 +23,8 @@ from frappe.model.naming import make_autoname
 
 BATCH_SIZE = 400
 THROTTLE_DELAY = 0.03  # 30ms
+DEFAULT_SEND_RATE = 10  # messages per second per batch job
+MAX_CONCURRENCY = 50
 
 SENT_STATUSES = ["accepted", "sent", "delivered", "read", "Success"]
 FAILED_STATUSES = ["failed", "Failed"]
@@ -91,17 +99,20 @@ class BulkWhatsAppMessage(Document):
         success = 0
         failed = 0
         
-        for r in recipients:
-            try:
-                self.create_message_record(r)
-                success += 1
-            except Exception:
-                frappe.log_error("Bulk WhatsApp Batch Error", frappe.get_traceback())
-                failed += 1
+        if self.use_template and self.template:
+            success, failed = self.send_concurrently(recipients)
+        else:
+            for r in recipients:
+                try:
+                    self.create_message_record(r)
+                    success += 1
+                except Exception:
+                    frappe.log_error("Bulk WhatsApp Batch Error", frappe.get_traceback())
+                    failed += 1
 
-            # Make the message visible to status webhooks right away
-            frappe.db.commit()  # nosemgrep
-            time.sleep(THROTTLE_DELAY)
+                # Make the message visible to status webhooks right away
+                frappe.db.commit()  # nosemgrep
+                time.sleep(THROTTLE_DELAY)
 
         frappe.db.sql("""
             UPDATE `tabBulk WhatsApp Message`
@@ -111,7 +122,102 @@ class BulkWhatsAppMessage(Document):
         
         self.update_status()
     
+    def send_concurrently(self, recipients):
+        """Send template messages with concurrent HTTP calls; DB writes stay in this thread."""
+        if self.whatsapp_account:
+            account = frappe.get_doc("WhatsApp Account", self.whatsapp_account)
+        else:
+            account = get_whatsapp_account(account_type="outgoing")
+            if not account:
+                frappe.throw(_("Please set a default outgoing WhatsApp Account"))
+        token = account.get_password("token")
+
+        # Insert every row before sending, so webhooks always find it
+        to_send = []
+        for r in recipients:
+            doc = self.new_message(r)
+            doc.whatsapp_account = account.name
+            doc.set_new_name()
+            try:
+                payload = doc.get_template_payload()
+                payload["biz_opaque_callback_data"] = doc.name
+                to_send.append((doc, payload))
+            except Exception as e:
+                frappe.log_error("Bulk WhatsApp Batch Error", frappe.get_traceback())
+                doc.status = "failed"
+                doc.error_message = str(e)
+            doc.db_insert()
+        frappe.db.commit()  # nosemgrep
+
+        success = 0
+        failed = len(recipients) - len(to_send)
+        rate = cint(account.get("bulk_send_rate")) or DEFAULT_SEND_RATE
+        sender = BulkSender(
+            f"{account.url}/{account.version}/{account.phone_id}/messages", token, rate
+        )
+        pool = ThreadPoolExecutor(max_workers=min(rate, MAX_CONCURRENCY))
+        try:
+            futures = {pool.submit(sender.post, payload): doc for doc, payload in to_send}
+            for future in as_completed(futures):
+                if self.save_send_result(futures[future], *future.result()):
+                    success += 1
+                else:
+                    failed += 1
+                frappe.db.commit()  # nosemgrep
+        finally:
+            pool.shutdown(cancel_futures=True)
+            sender.close()
+
+        return success, failed
+
+    def save_send_result(self, doc, status_code, response):
+        if status_code == 200 and response.get("messages"):
+            doc.message_id = response["messages"][0]["id"]
+            # A webhook may have already moved the status forward
+            frappe.db.sql("""
+                UPDATE `tabWhatsApp Message`
+                SET message_id = %s,
+                    status = CASE WHEN status = 'queued' THEN 'accepted' ELSE status END
+                WHERE name = %s
+                """, (doc.message_id, doc.name))
+            try:
+                doc.create_whatsapp_profile()
+            except Exception:
+                frappe.log_error("Bulk WhatsApp Profile Error", frappe.get_traceback())
+            frappe.publish_realtime(
+                doc.to,
+                {
+                    "type": doc.type,
+                    "message_id": doc.message_id,
+                    "local_message_id": doc.local_message_id,
+                    "content": doc.message or doc.attach,
+                    "caption": doc.caption,
+                },
+            )
+            return True
+
+        error = response.get("error", {})
+        frappe.get_doc({
+            "doctype": "WhatsApp Notification Log",
+            "template": "Text Message",
+            "meta_data": response,
+        }).insert(ignore_permissions=True)
+        frappe.db.set_value(
+            "WhatsApp Message",
+            doc.name,
+            {
+                "status": "failed",
+                "error_code": error.get("code"),
+                "error_message": error.get("Error", error.get("message")),
+            },
+            update_modified=False,
+        )
+        return False
+
     def create_message_record(self, recipient):
+        self.new_message(recipient).insert(ignore_permissions=True)
+
+    def new_message(self, recipient):
         wa_message = frappe.new_doc("WhatsApp Message")
         wa_message.to = recipient.get("mobile_number")
         #wa_message.type = "Outgoing"
@@ -146,8 +252,8 @@ class BulkWhatsAppMessage(Document):
         
         if self.attach:
             wa_message.attach = self.attach
-        
-        wa_message.insert(ignore_permissions=True)
+
+        return wa_message
 
     def update_status(self):
         total = self.recipient_count
@@ -262,6 +368,51 @@ class BulkWhatsAppMessage(Document):
                 }
             ]
         }
+
+
+class BulkSender:
+    """Posts payloads to Meta from worker threads at a fixed rate.
+
+    Runs outside the Frappe context: no frappe.* calls in here.
+    """
+
+    def __init__(self, url, token, rate):
+        self.url = url
+        self.headers = {"authorization": f"Bearer {token}"}
+        self.interval = 1 / rate
+        self.next_at = 0
+        self.lock = threading.Lock()
+        self.local = threading.local()
+        self.sessions = []
+
+    def post(self, payload):
+        self.wait()
+        try:
+            response = self.session().post(self.url, json=payload, headers=self.headers, timeout=30)
+        except requests.RequestException as e:
+            return None, {"error": {"message": str(e)}}
+        try:
+            return response.status_code, response.json()
+        except ValueError:
+            return response.status_code, {"error": {"message": response.text[:500]}}
+
+    def wait(self):
+        with self.lock:
+            now = time.monotonic()
+            send_at = max(now, self.next_at)
+            self.next_at = send_at + self.interval
+        time.sleep(send_at - now)
+
+    def session(self):
+        # One connection per thread, reused across messages
+        if not hasattr(self.local, "session"):
+            self.local.session = requests.Session()
+            self.sessions.append(self.local.session)
+        return self.local.session
+
+    def close(self):
+        for session in self.sessions:
+            session.close()
 
 
 def process_scheduled_messages():

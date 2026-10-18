@@ -322,11 +322,19 @@ def update_single_message_status(status_data):
 	name, current_status = frappe.db.get_value(
 		"WhatsApp Message", {"message_id": id}, ["name", "status"]
 	) or (None, None)
+	if not name and status_data.get("biz_opaque_callback_data"):
+		# Bulk sends: the webhook can arrive before the message_id is saved
+		name, current_status = frappe.db.get_value(
+			"WhatsApp Message",
+			{"name": status_data["biz_opaque_callback_data"], "message_id": ("is", "not set")},
+			["name", "status"],
+		) or (None, None)
 
 	if not name or not is_newer_status(status, current_status):
 		return
 
 	values = {
+		"message_id": id,
 		"status": status,
 		"conversation_id": conversation
 	}

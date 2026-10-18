@@ -208,6 +208,9 @@ class WhatsAppMessage(Document):
 
     def send_template(self):
         """Send template."""
+        self.notify(self.get_template_payload())
+
+    def get_template_payload(self):
         template = frappe.get_doc("WhatsApp Templates", self.template)
         data = {
             "messaging_product": "whatsapp",
@@ -373,7 +376,7 @@ class WhatsAppMessage(Document):
             if button_parameters:
                 data['template']['components'].extend(button_parameters)
 
-        self.notify(data)
+        return data
 
     def notify(self, data):
         """Notify."""

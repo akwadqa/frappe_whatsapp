@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import frappe
 from frappe_whatsapp.testing import IntegrationTestCase
+from frappe_whatsapp.frappe_whatsapp.doctype.bulk_whatsapp_message.bulk_whatsapp_message import BulkSender
 
 
 class TestBulkWhatsAppMessage(IntegrationTestCase):
@@ -250,3 +251,66 @@ class TestBulkWhatsAppMessage(IntegrationTestCase):
 
         # Cleanup
         frappe.delete_doc("WhatsApp Recipient List", rec_list.name, force=True)
+
+    def _process_batch(self, post):
+        doc = self._make_bulk_message(title="Test Bulk Concurrent")
+        doc.template_variables = json.dumps({"1": "User"})
+        payloads = []
+
+        def fake_post(payload):
+            payloads.append(payload)
+            return post(payload)
+
+        with patch.object(BulkSender, "post", side_effect=fake_post):
+            doc.process_batch(doc.recipients)
+
+        messages = frappe.get_all(
+            "WhatsApp Message",
+            filters={"bulk_message_reference": doc.name},
+            fields=["name", "to", "status", "message_id", "error_code"],
+        )
+        return doc, payloads, {m.name: m for m in messages}
+
+    def test_process_batch_sends_concurrently(self):
+        doc, payloads, messages = self._process_batch(
+            lambda payload: (200, {"messages": [{"id": f"wamid.{payload['to']}"}]})
+        )
+
+        self.assertEqual(len(payloads), 2)
+        for payload in payloads:
+            message = messages[payload["biz_opaque_callback_data"]]
+            self.assertEqual(message.status, "accepted")
+            self.assertEqual(message.message_id, f"wamid.{message.to}")
+        self.assertEqual(doc.reload().sent_count, 2)
+
+    def test_process_batch_saves_failed_send(self):
+        doc, payloads, messages = self._process_batch(
+            lambda payload: (400, {"error": {"code": 131026, "message": "Undeliverable"}})
+        )
+
+        self.assertEqual(len(messages), 2)
+        for message in messages.values():
+            self.assertEqual(message.status, "failed")
+            self.assertEqual(message.error_code, "131026")
+            self.assertIsNone(message.message_id)
+        self.assertEqual(doc.reload().sent_count, 0)
+
+    def test_save_send_result_keeps_newer_status(self):
+        """A webhook that beat the response isn't moved back to accepted."""
+        doc = self._make_bulk_message(title="Test Bulk Keep Status")
+        message = frappe.get_doc({
+            "doctype": "WhatsApp Message",
+            "type": "Outgoing",
+            "to": "919900112288",
+            "status": "delivered",
+            "bulk_message_reference": doc.name,
+            "whatsapp_account": "Test WA Bulk Account",
+        })
+        message.db_insert()
+
+        doc.save_send_result(message, 200, {"messages": [{"id": "wamid.bulk_keep_status"}]})
+
+        self.assertEqual(
+            frappe.db.get_value("WhatsApp Message", message.name, ["status", "message_id"]),
+            ("delivered", "wamid.bulk_keep_status"),
+        )

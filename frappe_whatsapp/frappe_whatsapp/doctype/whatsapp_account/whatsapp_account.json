@@ -20,7 +20,8 @@
   "business_id",
   "is_default_incoming",
   "is_default_outgoing",
-  "allow_auto_read_receipt"
+  "allow_auto_read_receipt",
+  "bulk_send_rate"
  ],
  "fields": [
   {
@@ -100,12 +101,20 @@
    "fieldname": "allow_auto_read_receipt",
    "fieldtype": "Check",
    "label": "Allow auto read receipt"
+  },
+  {
+   "default": "10",
+   "description": "Messages per second for each bulk batch job",
+   "fieldname": "bulk_send_rate",
+   "fieldtype": "Int",
+   "label": "Bulk Send Rate",
+   "non_negative": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-12-01 18:30:21.339317",
+ "modified": "2026-10-16 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Account",

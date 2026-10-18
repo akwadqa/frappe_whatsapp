@@ -151,6 +151,31 @@ class TestWebhookHelpers(IntegrationTestCase):
         self.assertEqual(first.reload().status, "sent")
         self.assertEqual(second.reload().status, "delivered")
 
+    def test_update_message_status_by_callback_data(self):
+        """A status that arrives before the message_id is saved still matches."""
+        msg = self._insert_message(None, "queued")
+
+        update_message_status({"statuses": [{
+            "id": "wamid.webhook_early_status",
+            "status": "sent",
+            "biz_opaque_callback_data": msg.name,
+        }]})
+
+        msg.reload()
+        self.assertEqual(msg.status, "sent")
+        self.assertEqual(msg.message_id, "wamid.webhook_early_status")
+
+    def test_update_message_status_callback_data_needs_empty_message_id(self):
+        msg = self._insert_message("wamid.webhook_other_id", "accepted")
+
+        update_message_status({"statuses": [{
+            "id": "wamid.webhook_unknown_id",
+            "status": "delivered",
+            "biz_opaque_callback_data": msg.name,
+        }]})
+
+        self.assertEqual(msg.reload().status, "accepted")
+
     def test_update_message_status_never_goes_back(self):
         """A late "sent" webhook doesn't overwrite "read"."""
         msg = self._insert_message("wamid.webhook_late_sent", "read")
