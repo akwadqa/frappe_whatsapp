@@ -7,8 +7,15 @@
  "engine": "InnoDB",
  "field_order": [
   "default_incoming_account",
-  "column_break_xsuw",
-  "default_outgoing_account"
+  "default_outgoing_account",
+  "otp_authentication_template",
+  "whatsapp_messages_limit",
+  "rsvp_section",
+  "confirm_reply_en",
+  "decline_reply_en",
+  "column_break_skjo",
+  "confirm_reply_ar",
+  "decline_reply_ar"
  ],
  "fields": [
   {
@@ -24,15 +31,55 @@
    "options": "WhatsApp Account"
   },
   {
+   "description": "WhatsApp template used to send login OTP messages.",
+   "fieldname": "otp_authentication_template",
+   "fieldtype": "Data",
+   "label": "OTP Authentication Template"
+  },
+  {
    "fieldname": "column_break_skjo",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "rsvp_section",
+   "fieldtype": "Section Break",
+   "label": "RSVP Reply Messages"
+  },
+  {
+   "description": "Sent to a guest after they reply Confirm to an invite (English occasions).",
+   "fieldname": "confirm_reply_en",
+   "fieldtype": "Small Text",
+   "label": "Confirm Reply (English)"
+  },
+  {
+   "description": "Sent to a guest after they reply Decline to an invite (English occasions).",
+   "fieldname": "decline_reply_en",
+   "fieldtype": "Small Text",
+   "label": "Decline Reply (English)"
+  },
+  {
+   "description": "Sent to a guest after they reply Confirm to an invite (Arabic occasions).",
+   "fieldname": "confirm_reply_ar",
+   "fieldtype": "Small Text",
+   "label": "Confirm Reply (Arabic)"
+  },
+  {
+   "description": "Sent to a guest after they reply Decline to an invite (Arabic occasions).",
+   "fieldname": "decline_reply_ar",
+   "fieldtype": "Small Text",
+   "label": "Decline Reply (Arabic)"
+  },
+  {
+   "fieldname": "whatsapp_messages_limit",
+   "fieldtype": "Int",
+   "label": "Whatsapp Messages Limit"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-12-01 13:22:14.262545",
+ "modified": "2026-09-30 11:50:54.007208",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Settings",

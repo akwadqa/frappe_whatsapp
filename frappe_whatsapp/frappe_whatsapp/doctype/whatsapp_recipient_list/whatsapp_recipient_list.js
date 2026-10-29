@@ -1,5 +1,21 @@
 frappe.ui.form.on("WhatsApp Recipient List", {
+  occasion: function (frm) {
+    frm.set_value("import_filters", `{"occasion": "${frm.doc.occasion}"}`);
+  },
   refresh: function (frm) {
+    frm.fields_dict["recipients"].grid.get_field("occasion_invitee").get_query = function (doc, cdt, cdn) {
+      if (!frm.doc.occasion) {
+        frappe.msgprint(__("Please select an Occasion first."));
+        return false;
+      }
+
+      return {
+        filters: {
+          occasion: frm.doc.occasion,
+        },
+      };
+    };
+
     frm.fields_dict.import_button.onclick = function () {
       if (!frm.doc.doctype_to_import || !frm.doc.mobile_field) {
         frappe.throw(

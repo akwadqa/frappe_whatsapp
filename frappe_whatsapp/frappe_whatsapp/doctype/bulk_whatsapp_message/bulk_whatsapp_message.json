@@ -12,6 +12,7 @@
   "section_recipients",
   "recipient_type",
   "recipient_list",
+  "occasion",
   "recipient_count",
   "column_break_xvnh",
   "recipients",
@@ -81,6 +82,15 @@
    "fieldtype": "Int",
    "label": "Recipient Count",
    "read_only": 1
+  },
+  {
+   "depends_on": "eval: doc.recipient_list",
+   "fetch_from": "recipient_list.occasion",
+   "fieldname": "occasion",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Occasion",
+   "options": "Occasion"
   },
   {
    "fieldname": "section_message",

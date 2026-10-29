@@ -108,6 +108,14 @@ class WhatsAppMessage(Document):
             elif self.content_type == "text":
                 data["text"] = {"preview_url": True, "body": self.message}
 
+            elif self.content_type == "location":
+                data["location"] = {
+                    "latitude": self.latitude,
+                    "longitude": self.longitude,
+                    "name": self.location_name,
+                    "address": self.location_address,
+                }
+
             elif self.content_type == "audio":                
                 if ext and ext == ".webm":
                     data["document"] = {"link": link}
@@ -291,6 +299,22 @@ class WhatsAppMessage(Document):
                             }
                         }]
                     })
+
+            elif template.header_type == 'IMAGE' and self.occasion and frappe.get_value("Occasion", self.occasion, "image"):
+                # Invite flow: an Occasion's own uploaded image takes priority
+                # over the template's static sample, so each event can send
+                # its own header image without a separate template per event.
+                occasion_image = frappe.get_value("Occasion", self.occasion, "image")
+                url = occasion_image if occasion_image.startswith("http") else f'{frappe.utils.get_url()}{occasion_image}'
+                data['template']['components'].append({
+                    "type": "header",
+                    "parameters": [{
+                        "type": "image",
+                        "image": {
+                            "link": url
+                        }
+                    }]
+                })
 
             elif template.sample:
                 if template.header_type in ('IMAGE', 'VIDEO'):

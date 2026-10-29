@@ -8,6 +8,8 @@
  "field_order": [
   "list_name",
   "description",
+  "column_break_cuzy",
+  "occasion",
   "section_recipients",
   "recipients",
   "import_section",
@@ -33,6 +35,17 @@
    "fieldname": "description",
    "fieldtype": "Small Text",
    "label": "Description"
+  },
+  {
+   "fieldname": "column_break_cuzy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "occasion",
+   "fieldtype": "Link",
+   "label": "Occasion",
+   "mandatory_depends_on": "eval: doc.doctype_to_import == \"Occasion Invitee\"",
+   "options": "Occasion"
   },
   {
    "fieldname": "section_recipients",

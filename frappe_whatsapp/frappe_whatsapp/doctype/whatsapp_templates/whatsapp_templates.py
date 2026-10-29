@@ -26,6 +26,19 @@ class WhatsAppTemplates(Document):  # nosemgrep: frappe-modifying-but-not-commit
             self.get_media_id(self.sample)
 
         if not self.is_new():
+            # Persist a newly-set action_type immediately so it survives even if the
+            # Meta call fails and the rest of this save rolls back.
+            for btn in self.buttons:
+                if btn.action_type and btn.action_type != frappe.db.get_value("WhatsApp Button", btn.name, "action_type"):
+                    btn.db_set("action_type", btn.action_type)
+                    frappe.db.commit()
+                    frappe.msgprint(_("Button Action Type saved successfully"), alert=True, indicator="green")
+
+            # Persist display_order
+            if self.has_value_changed("display_order"):
+                self.db_set("display_order", self.display_order)
+                frappe.db.commit()
+
             self.update_template()
 
     def set_whatsapp_account(self):
@@ -125,6 +138,12 @@ class WhatsAppTemplates(Document):  # nosemgrep: frappe-modifying-but-not-commit
         if self.template_name:
             self.actual_name = self.template_name.lower().replace(" ", "_")  # nosemgrep: frappe-modifying-but-not-committing
 
+        for btn in self.buttons:
+            if btn.action_type and btn.action_type != frappe.db.get_value("WhatsApp Button", btn.name, "action_type"):
+                btn.db_set("action_type", btn.action_type)
+                frappe.db.commit()
+                frappe.msgprint(_("Button Action Type saved successfully"), alert=True, indicator="green")
+
         self.get_settings()
         data = {
             "name": self.actual_name,
@@ -199,6 +218,12 @@ class WhatsAppTemplates(Document):  # nosemgrep: frappe-modifying-but-not-commit
 
     def update_template(self):
         """Update template to meta."""
+        # Renaming template_name is a local-only relabel (actual_name/id on
+        # Meta don't change), so skip the round-trip - not part of develop,
+        # which had no equivalent guard.
+        if self.has_value_changed("template_name"):
+            return
+
         self.get_settings()
         data = {"components": []}
 
@@ -382,6 +407,12 @@ def fetch():
 
                     # Update buttons
                     elif component["type"] == "BUTTONS":
+                        existing_action_types = {
+                            (row.button_type, row.button_label): row.action_type
+                            for row in doc.get("buttons", [])
+                            if row.button_label and row.action_type
+                        }
+
                         doc.set("buttons", [])
                         frappe.db.delete("WhatsApp Button", {"parent": doc.name, "parenttype": "WhatsApp Templates"})
                         typeMap = {
@@ -403,6 +434,9 @@ def fetch():
                             btn["button_type"] = typeMap[button["type"]]
                             btn["button_label"] = button.get("text")
                             btn["sequence"] = i
+                            key = (btn["button_type"], btn["button_label"])
+                            if key in existing_action_types:
+                                btn["action_type"] = existing_action_types[key]
 
                             if button["type"] == "URL":
                                 btn["website_url"] = button.get("url")

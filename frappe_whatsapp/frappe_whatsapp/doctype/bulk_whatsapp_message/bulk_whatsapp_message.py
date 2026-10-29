@@ -82,7 +82,7 @@ class BulkWhatsAppMessage(Document):
             return frappe.get_all(
                 "WhatsApp Recipient",
                 filters={"parent": self.recipient_list},
-                fields=["mobile_number", "recipient_data"]
+                fields=["mobile_number", "recipient_data", "occasion_invitee"]
             )
         else:
             return self.recipients
@@ -130,10 +130,28 @@ class BulkWhatsAppMessage(Document):
             except Exception:
                 pass
         
+        # Invite flow: link the outgoing message back to the Occasion/invitee
+        # so RSVP status sync (webhook.py update_message_status) and the
+        # per-occasion image header fallback (whatsapp_message.py
+        # send_template) can find them. Not part of develop's generic bulk
+        # sender, which has no notion of Occasion.
+        if self.occasion:
+            wa_message.occasion = self.occasion
+        if recipient.get("occasion_invitee"):
+            wa_message.occasion_invitee = recipient.get("occasion_invitee")
+
         if self.use_template:
             wa_message.template = self.template
             wa_message.use_template = 1
             wa_message.message_type = "Template"
+
+            for_doctype = frappe.db.get_value("WhatsApp Templates", self.template, "for_doctype")
+            if for_doctype == "Occasion" and self.occasion:
+                wa_message.reference_doctype = "Occasion"
+                wa_message.reference_name = self.occasion
+            elif for_doctype == "Occasion Invitee" and recipient.get("occasion_invitee"):
+                wa_message.reference_doctype = "Occasion Invitee"
+                wa_message.reference_name = recipient.get("occasion_invitee")
 
         mpm_action = self.get_mpm_action_json()
         if mpm_action:
@@ -148,6 +166,14 @@ class BulkWhatsAppMessage(Document):
             wa_message.attach = self.attach
         
         wa_message.insert(ignore_permissions=True)
+
+
+        if self.occasion and recipient.get("occasion_invitee"):
+            qr_delivery = frappe.db.get_value("Occasion", self.occasion, "qr_delivery")
+            if qr_delivery == "Immediate":
+                from frappe_whatsapp.utils.webhook import confirm_invitee
+                invitee_doc = frappe.get_doc("Occasion Invitee", recipient.get("occasion_invitee"))
+                invitee_doc = confirm_invitee(invitee_doc, ticket_id=wa_message.message_id)
 
     def update_status(self):
         total = self.recipient_count

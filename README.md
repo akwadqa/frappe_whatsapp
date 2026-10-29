@@ -227,8 +227,8 @@ Build automated chatbots with flows, keyword replies, and AI-powered responses.
 | | |
 |---|---|
 | **Features** | Multi-step flows, keyword matching, AI fallback (OpenAI/Anthropic/Google), session management |
-| **Install** | `bench get-app https://github.com/shridarpatil/frappe_whatsapp_chatbot` |
-| **Marketplace** | <a href="https://frappecloud.com/marketplace/apps/frappe_whatsapp_chatbot"><img src="https://frappe.io/files/try-on-fc-black.png" alt="Try on Frappe Cloud" height="28" /></a> |
+| **Install** | `bench get-app https://github.com/shridarpatil/frappe_whatsapp_new_chatbot` |
+| **Marketplace** | <a href="https://frappecloud.com/marketplace/apps/frappe_whatsapp_new_chatbot"><img src="https://frappe.io/files/try-on-fc-black.png" alt="Try on Frappe Cloud" height="28" /></a> |
 | **Use Cases** | Customer support, order status, appointment booking, lead capture |
 
 ## Documentation

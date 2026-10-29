@@ -1,13 +1,15 @@
 """Webhook."""
-import frappe
+import base64
 import json
+
+import frappe
 import requests
-import time
 from frappe import _
 from werkzeug.wrappers import Response
 import frappe.utils
 
 from frappe_whatsapp.utils import get_whatsapp_account
+from frappe_whatsapp.utils.template_generator import generate_qr_card
 
 STATUS_ORDER = ["queued", "accepted", "sent", "failed", "delivered", "read"]
 
@@ -253,7 +255,7 @@ def post():
 						message_doc.attach = file.file_url
 						message_doc.save()
 			elif message_type == "button":
-				frappe.get_doc({
+				msg_doc = frappe.get_doc({
 					"doctype": "WhatsApp Message",
 					"type": "Incoming",
 					"from": message['from'],
@@ -265,6 +267,11 @@ def post():
 					"profile_name":sender_profile_name,
 					"whatsapp_account":whatsapp_account.name
 				}).insert(ignore_permissions=True)
+				# Invite/RSVP flow: route the guest's quick-reply button text to
+				# the linked Occasion Invitee. TODO: once the Templates API grows
+				# per-button `linked_template` support, resolve the action from
+				# the matched button/template instead of this hardcoded label map.
+				update_invitee_rsvp_status(reply_to_message_id, message['button']['text'])
 			else:
 				frappe.get_doc({
 					"doctype": "WhatsApp Message",
