@@ -1,13 +1,14 @@
 import frappe
 from frappe import _
 
-SENT_STATUSES = ["sent", "delivered", "read", "Success"]
+SENT_STATUSES = ["accepted", "sent", "delivered", "read", "Success"]
 FAILED_STATUSES = ["failed", "Failed"]
 QUEUED_STATUSES = ["queued", "Queued"]
 
 STATUS_LABELS = {
     "queued": _("Queued"),
     "Queued": _("Queued"),
+    "accepted": _("Accepted"),
     "sent": _("Sent"),
     "Success": _("Sent"),
     "delivered": _("Delivered"),

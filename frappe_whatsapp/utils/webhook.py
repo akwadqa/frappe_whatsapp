@@ -11,6 +11,8 @@ import frappe.utils
 from frappe_whatsapp.utils import get_whatsapp_account
 from frappe_whatsapp.utils.template_generator import generate_qr_card
 
+STATUS_ORDER = ["queued", "accepted", "sent", "failed", "delivered", "read"]
+
 
 @frappe.whitelist(allow_guest=True)
 def webhook():
@@ -283,12 +285,10 @@ def post():
 				}).insert(ignore_permissions=True)
 
 	else:
-		changes = None
-		try:
-			changes = data["entry"][0]["changes"][0]
-		except KeyError:
-			changes = data["entry"]["changes"][0]
-		update_status(changes)
+		entries = data["entry"] if isinstance(data["entry"], list) else [data["entry"]]
+		for entry in entries:
+			for changes in entry.get("changes", []):
+				update_status(changes)
 	return
 
 def update_status(data):
@@ -308,272 +308,42 @@ def update_template_status(data):
 		data
 	)
 
+def is_newer_status(status, current_status):
+	"""Webhooks can arrive out of order, never move a message back."""
+	current_status = (current_status or "").lower()
+	if status not in STATUS_ORDER or current_status not in STATUS_ORDER:
+		return True
+	return STATUS_ORDER.index(status) > STATUS_ORDER.index(current_status)
+
 def update_message_status(data):
-	"""Update message status + sync Occasion Invitee RSVP status."""
-	try:
-		statuses = (data or {}).get("statuses") or []
-		if not statuses:
-			return
+	"""Update message status."""
+	for status_data in data.get("statuses", []):
+		update_single_message_status(status_data)
 
-		st = statuses[0] or {}
-		msg_id = st.get("id")
-		status = (st.get("status") or "").lower()
-		conversation = (st.get("conversation") or {}).get("id")
+def update_single_message_status(status_data):
+	id = status_data['id']
+	status = status_data['status']
+	conversation = status_data.get('conversation', {}).get('id')
+	name, current_status = frappe.db.get_value(
+		"WhatsApp Message", {"message_id": id}, ["name", "status"]
+	) or (None, None)
 
-		if not msg_id or not status:
-			return
+	if not name or not is_newer_status(status, current_status):
+		return
 
-		name = frappe.db.get_value("WhatsApp Message", {"message_id": msg_id}, "name")
-		if not name:
-			return
+	values = {
+		"status": status,
+		"conversation_id": conversation
+	}
 
-		msg_doc = frappe.get_doc("WhatsApp Message", name)
-		msg_doc.status = status
-		frappe.db.set_value(
-			"WhatsApp Message",
-			name,
-			{
-				"status": status,
-				"conversation_id": conversation
-			},
-			update_modified=False
-		)
+	if status == "failed":
+		error = (status_data.get("errors") or [{}])[0]
+		values["error_code"] = error.get("code")
+		values["error_message"] = error.get("title") or error.get("message")
 
-		# Invite/RSVP flow: reflect delivery failures back on the invitee so
-		# retries/resends can target them (not part of develop's generic
-		# message-status handling, which has no notion of Occasion Invitee).
-		SUCCESS_STATES = {"sent", "delivered", "read"}
-		FAIL_STATES = {"failed", "undelivered"}
-
-		if msg_doc.occasion_invitee and frappe.db.exists("Occasion Invitee", msg_doc.occasion_invitee):
-			inv = frappe.get_doc("Occasion Invitee", msg_doc.occasion_invitee)
-
-			if inv.rsvp_status not in ["Confirmed", "Declined"] and not (inv.replied or 0):
-				if status in SUCCESS_STATES:
-					if inv.rsvp_status in ["Not Sent", "Failed"]:
-						inv.db_set("rsvp_status", "Pending", update_modified=False)
-
-				elif status in FAIL_STATES:
-					if inv.rsvp_status in ["Not Sent", "Pending"]:
-						inv.db_set("rsvp_status", "Failed", update_modified=False)
-
-		frappe.db.commit()
-
-	except Exception:
-		frappe.log_error("error in updating message status", frappe.get_traceback())
-
-
-def confirm_invitee(doc, ticket_id=None):
-	# Mark an Occasion Invitee as Confirmed and send the QR ticket
-	
-	doc.rsvp_status = "Confirmed"
-
-	qr_delivery = frappe.db.get_value("Occasion", doc.occasion, "qr_delivery")
-	if qr_delivery != "Disabled" and ticket_id and not doc.ticket_id:
-		doc.ticket_id = ticket_id
-
-	doc.save(ignore_permissions=True)
-	frappe.db.commit()
-
-	try:
-		if doc.qr_raw_data:
-			context = {
-				"title": "Personal access card",
-				"subtitle": "Please show code to enter",
-				"subtitle_ar": "يرجى إبراز الكود للدخول",
-				"qr_image_url": doc.qr_raw_data,
-				"brand_en": "KROOT",
-				"brand_ar": "كروت",
-				"guest_count": doc.party_size,
-				"website": "www.kroot.com",
-			}
-
-			base64_card = generate_qr_card(
-				"frappe_whatsapp/templates/QR_Code_template_Kroot.html", context
-			)
-			file_url = _save_qr_card_file(base64_card, doc)
-
-			frappe.get_doc({
-				"doctype": "WhatsApp Message",
-				"type": "Outgoing",
-				"to": doc.whatsapp_number,
-				"occasion_invitee": doc.name,
-				"occasion": doc.occasion,
-				"message_type": "Manual",
-				"reference_doctype": "Occasion Invitee",
-				"reference_name": doc.name,
-				"content_type": "image",
-				"attach": file_url
-			}).insert(ignore_permissions=True)
-
-			doc.replied = 1
-			doc.save(ignore_permissions=True)
-			frappe.db.commit()
-
-	except Exception as e:
-		frappe.log_error("error in sending qr image", str(e))
-
-	return doc
-
-
-def update_invitee_rsvp_status(message_id, reply):
-	"""Update RSVP status of an Occasion Invitee based on WhatsApp reply.
-
-	Outgoing replies are created as plain `WhatsApp Message` docs and left to
-	the doctype's own `before_insert`/`send_outgoing` to resolve the default
-	WhatsApp Account and dispatch to Meta - no manual credential handling
-	needed here (develop's `WhatsAppMessage.set_whatsapp_account()` already
-	covers that requirement).
-	"""
-	try:
-		if not message_id:
-			frappe.log_error(
-				title="Missing message_id",
-				message="update_invitee_rsvp_status was called without a message_id"
-			)
-			return
-
-		occasion_invitee = frappe.db.get_value(
-			"WhatsApp Message",
-			filters={"message_id": message_id},
-			fieldname="occasion_invitee"
-		)
-		if not occasion_invitee:
-			frappe.log_error(
-				title="No invitee found",
-				message=f"No invitee found for message_id={message_id}"
-			)
-			return
-
-		# Mapping to allow translation and different templates.
-		status_map = {
-			"تأكيد": "Confirmed",
-			"اعتذار": "Declined",
-			"موقع المناسبة": "Location",
-			"Confirm": "Confirmed",
-			"Decline": "Declined",
-			"Location": "Location",
-		}
-		reply_r = status_map.get(reply)
-		allowed = {"Confirmed", "Declined", "Location"}
-		new_status = reply_r.strip() if reply_r else None
-
-		if new_status not in allowed:
-			frappe.log_error(
-				title="Unrecognized reply",
-				message=f"Unrecognized reply: {reply}"
-			)
-			return
-
-		doc = frappe.get_doc("Occasion Invitee", occasion_invitee)
-
-		settings = frappe.get_single("WhatsApp Settings")
-		language = frappe.db.get_value("Occasion", doc.occasion, "language")
-		confirm_text = decline_text = None
-		if language == "Arabic":
-			confirm_text = (settings.get("confirm_reply_ar") or "").strip()
-			decline_text = (settings.get("decline_reply_ar") or "").strip()
-		else:
-			confirm_text = (settings.get("confirm_reply_en") or "").strip()
-			decline_text = (settings.get("decline_reply_en") or "").strip()
-			
-		def send_text_message(text):
-			frappe.get_doc({
-				"doctype": "WhatsApp Message",
-				"type": "Outgoing",
-				"to": doc.whatsapp_number,
-				"occasion_invitee": doc.name,
-				"occasion": doc.occasion,
-				"content_type": "text",
-				"message_type": "Manual",
-				"message": text,
-				"reference_doctype": "Occasion Invitee",
-				"reference_name": doc.name
-			}).insert(ignore_permissions=True)
-
-		if new_status == "Confirmed":
-			doc = confirm_invitee(doc, ticket_id=message_id)
-			qr_delivery = frappe.db.get_value("Occasion", doc.occasion, "qr_delivery")
-			if qr_delivery == "Disabled":
-				try:
-					if confirm_text:
-						send_text_message(confirm_text)
-					doc.replied = 1
-					doc.save(ignore_permissions=True)
-					frappe.db.commit()
-				except Exception as e:
-					frappe.log_error("error in sending confirm message", str(e))
-		else:
-			doc.rsvp_status = new_status if new_status in ["Confirmed", "Declined"] else doc.rsvp_status
-			doc.save(ignore_permissions=True)
-			frappe.db.commit()
-
-		if new_status == "Declined":
-			try:
-				if decline_text:
-					send_text_message(decline_text)
-				doc.replied = 1
-				doc.save(ignore_permissions=True)
-				frappe.db.commit()
-			except Exception as e:
-				frappe.log_error("error in sending decline message", str(e))
-
-		elif new_status == "Location":
-			location_name = frappe.db.get_value("Occasion", doc.occasion, "location_name")
-			location_address = frappe.db.get_value("Occasion", doc.occasion, "location_address")
-			lat = frappe.db.get_value("Occasion", doc.occasion, "map_latitude")
-			lng = frappe.db.get_value("Occasion", doc.occasion, "map_longitude")
-
-			if lat is None or lng is None:
-				frappe.log_error(
-					title="Missing Location Coordinates",
-					message=f"Occasion {doc.occasion} is missing map_latitude/map_longitude"
-				)
-				return
-
-			try:
-				frappe.get_doc({
-					"doctype": "WhatsApp Message",
-					"type": "Outgoing",
-					"to": doc.whatsapp_number,
-					"occasion_invitee": doc.name,
-					"occasion": doc.occasion,
-					"content_type": "location",
-					"latitude": float(lat),
-					"longitude": float(lng),
-					"location_name": location_name,
-					"location_address": location_address,
-					"reference_doctype": "Occasion",
-					"reference_name": doc.occasion
-				}).insert(ignore_permissions=True)
-				frappe.db.commit()
-			except Exception as e:
-				frappe.log_error("send location error", str(e))
-
-	except Exception as e:
-		frappe.db.rollback()
-		frappe.log_error(
-			title="RSVP Update Failed",
-			message=f"message_id={message_id}, reply={reply}, error={str(e)}"
-		)
-
-
-def _save_qr_card_file(base64_png, occasion_invitee_doc):
-	"""Save a generated QR ticket card as a public Frappe File and return its URL.
-
-	Meta's Cloud API can fetch outgoing images by public link (the same
-	mechanism develop's WhatsAppMessage.send_outgoing already uses for every
-	other image), so the ticket card is saved as a File instead of uploaded
-	to Meta's media endpoint - no WABA media_id round-trip needed.
-	"""
-	raw = base64.b64decode(base64_png.split(",", 1)[1] if "," in base64_png else base64_png)
-	file_name = f"qr-ticket-{occasion_invitee_doc.name}.png"
-	file_doc = frappe.get_doc({
-		"doctype": "File",
-		"file_name": file_name,
-		"attached_to_doctype": "Occasion Invitee",
-		"attached_to_name": occasion_invitee_doc.name,
-		"content": raw,
-		"is_private": 0
-	}).save(ignore_permissions=True)
-	return file_doc.file_url
+	frappe.db.set_value(
+		"WhatsApp Message",
+		name,
+		values,
+		update_modified=False
+	)

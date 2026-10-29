@@ -18,7 +18,7 @@ from frappe.model.naming import make_autoname
 BATCH_SIZE = 400
 THROTTLE_DELAY = 0.03  # 30ms
 
-SENT_STATUSES = ["sent", "delivered", "read", "Success"]
+SENT_STATUSES = ["accepted", "sent", "delivered", "read", "Success"]
 FAILED_STATUSES = ["failed", "Failed"]
 QUEUED_STATUSES = ["queued", "Queued"]
 
@@ -99,6 +99,8 @@ class BulkWhatsAppMessage(Document):
                 frappe.log_error("Bulk WhatsApp Batch Error", frappe.get_traceback())
                 failed += 1
 
+            # Make the message visible to status webhooks right away
+            frappe.db.commit()  # nosemgrep
             time.sleep(THROTTLE_DELAY)
 
         frappe.db.sql("""
@@ -229,8 +231,6 @@ class BulkWhatsAppMessage(Document):
         message_doc.db_update()
         try:
             message_doc.send_outgoing()
-            message_doc.status = "sent"
-            message_doc.db_update()
         except Exception:
             message_doc.status = "failed"
             message_doc.db_update()
