@@ -1,10 +1,12 @@
 import frappe
 import base64
-from playwright.sync_api import sync_playwright
 
 def generate_qr_card(template_name: str, context: dict) -> str:
     """Generate a base64-encoded PNG from an HTML template."""
-    
+    # Imported here so the app stays importable where playwright is not installed;
+    # only card generation itself needs it.
+    from playwright.sync_api import sync_playwright
+
     html = frappe.render_template(template_name, context)
 
     try:

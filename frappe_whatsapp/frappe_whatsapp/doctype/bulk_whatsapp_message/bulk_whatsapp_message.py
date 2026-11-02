@@ -9,6 +9,8 @@ from frappe.utils import cint, get_datetime, now_datetime
 from frappe.model.document import Document
 from frappe.model.naming import make_autoname
 
+from frappe_whatsapp.utils.occasion_rsvp import confirm_invitee
+
 # Add these files to your frappe_whatsapp app
 
 # 1. First, create a new DocType for Bulk WhatsApp Messaging
@@ -171,7 +173,6 @@ class BulkWhatsAppMessage(Document):
         if self.occasion and recipient.get("occasion_invitee"):
             qr_delivery = frappe.db.get_value("Occasion", self.occasion, "qr_delivery")
             if qr_delivery == "Immediate":
-                from frappe_whatsapp.utils.webhook import confirm_invitee
                 invitee_doc = frappe.get_doc("Occasion Invitee", recipient.get("occasion_invitee"))
                 invitee_doc = confirm_invitee(invitee_doc, ticket_id=wa_message.message_id)
 
