@@ -324,9 +324,9 @@ def update_single_message_status(status_data):
 	id = status_data['id']
 	status = status_data['status']
 	conversation = status_data.get('conversation', {}).get('id')
-	name, current_status = frappe.db.get_value(
-		"WhatsApp Message", {"message_id": id}, ["name", "status"]
-	) or (None, None)
+	name, current_status, occasion_invitee = frappe.db.get_value(
+		"WhatsApp Message", {"message_id": id}, ["name", "status", "occasion_invitee"]
+	) or (None, None, None)
 
 	if not name or not is_newer_status(status, current_status):
 		return
@@ -347,3 +347,20 @@ def update_single_message_status(status_data):
 		values,
 		update_modified=False
 	)
+
+	if occasion_invitee:
+		sync_invitee_rsvp_status(occasion_invitee, status)
+
+def sync_invitee_rsvp_status(occasion_invitee, message_status):
+	"""
+	Reflect delivery on the invitee so a failed invitation is not shown as Pending.
+	Replies (Confirmed/Declined) are never overwritten. A later successful resend moves Failed back to Pending.
+	"""
+	current = frappe.db.get_value("Occasion Invitee", occasion_invitee, "rsvp_status")
+	if message_status == "failed" and current in ("Not Sent", "Pending"):
+		new_status = "Failed"
+	elif message_status in ("sent", "delivered", "read") and current == "Failed":
+		new_status = "Pending"
+	else:
+		return
+	frappe.db.set_value("Occasion Invitee", occasion_invitee, "rsvp_status", new_status, update_modified=False)
