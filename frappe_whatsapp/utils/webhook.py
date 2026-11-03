@@ -1,5 +1,4 @@
 """Webhook."""
-import base64
 import json
 
 import frappe
@@ -9,7 +8,7 @@ from werkzeug.wrappers import Response
 import frappe.utils
 
 from frappe_whatsapp.utils import get_whatsapp_account
-from frappe_whatsapp.utils.template_generator import generate_qr_card
+from frappe_whatsapp.utils.occasion_rsvp import update_invitee_rsvp_status
 
 STATUS_ORDER = ["queued", "accepted", "sent", "failed", "delivered", "read"]
 
@@ -267,10 +266,7 @@ def post():
 					"profile_name":sender_profile_name,
 					"whatsapp_account":whatsapp_account.name
 				}).insert(ignore_permissions=True)
-				# Invite/RSVP flow: route the guest's quick-reply button text to
-				# the linked Occasion Invitee. TODO: once the Templates API grows
-				# per-button `linked_template` support, resolve the action from
-				# the matched button/template instead of this hardcoded label map.
+				# Invite/RSVP flow: route the guest's quick-reply button to the linked Occasion Invitee.
 				update_invitee_rsvp_status(reply_to_message_id, message['button']['text'])
 			else:
 				frappe.get_doc({
@@ -324,9 +320,9 @@ def update_single_message_status(status_data):
 	id = status_data['id']
 	status = status_data['status']
 	conversation = status_data.get('conversation', {}).get('id')
-	name, current_status = frappe.db.get_value(
-		"WhatsApp Message", {"message_id": id}, ["name", "status"]
-	) or (None, None)
+	name, current_status, occasion_invitee, message_type = frappe.db.get_value(
+		"WhatsApp Message", {"message_id": id}, ["name", "status", "occasion_invitee", "message_type"]
+	) or (None, None, None, None)
 
 	if not name or not is_newer_status(status, current_status):
 		return
@@ -347,3 +343,22 @@ def update_single_message_status(status_data):
 		values,
 		update_modified=False
 	)
+
+	# Only the invitation (a template send) reflects on the invitee. The RSVP
+	# replies carry occasion_invitee too, and their delivery must not touch it.
+	if occasion_invitee and message_type == "Template":
+		sync_invitee_rsvp_status(occasion_invitee, status)
+
+def sync_invitee_rsvp_status(occasion_invitee, message_status):
+	"""
+	Reflect delivery on the invitee so a failed invitation is not shown as Pending.
+	Replies (Confirmed/Declined) are never overwritten. A later successful resend moves Failed back to Pending.
+	"""
+	current = frappe.db.get_value("Occasion Invitee", occasion_invitee, "rsvp_status")
+	if message_status == "failed" and current in ("Not Sent", "Pending"):
+		new_status = "Failed"
+	elif message_status in ("sent", "delivered", "read") and current == "Failed":
+		new_status = "Pending"
+	else:
+		return
+	frappe.db.set_value("Occasion Invitee", occasion_invitee, "rsvp_status", new_status, update_modified=False)
