@@ -6,7 +6,6 @@ import frappe
 from frappe_whatsapp.utils.template_generator import generate_qr_card
 
 QR_CARD_TEMPLATE = "frappe_whatsapp/templates/QR_Code_template_Kroot.html"
-RSVP_ACTIONS = {"Confirm", "Decline", "Location"}
 
 # Used only when the invitation template's buttons carry no action_type.
 REPLY_LABEL_ACTIONS = {
@@ -20,12 +19,28 @@ REPLY_LABEL_ACTIONS = {
 
 
 def update_invitee_rsvp_status(message_id, reply):
-	"""Apply a guest's quick-reply button to the invitee linked to the invitation message."""
+	"""Apply a guest's quick-reply button to the invitee linked to the invitation message.
+
+	Every error is logged and swallowed so a bad reply never fails the webhook
+	request that has already recorded the incoming message.
+	"""
+	try:
+		apply_rsvp_reply(message_id, reply)
+	except Exception:
+		frappe.log_error(
+			title="RSVP Update Failed",
+			message=f"message_id={message_id}, reply={reply}\n{frappe.get_traceback()}",
+		)
+
+
+def apply_rsvp_reply(message_id, reply):
 	invitation = get_invitation(message_id)
 	if not invitation:
 		return
 
 	action = resolve_reply_action(invitation.template, reply)
+	if action == "Other":
+		return
 	if not action:
 		frappe.log_error(
 			title="Unrecognized RSVP reply",
@@ -38,6 +53,7 @@ def update_invitee_rsvp_status(message_id, reply):
 		send_location(doc)
 		return
 
+	# The guest replied; whether Meta accepts the acknowledgement is recorded on the outgoing message.
 	doc.replied = 1
 	if action == "Confirm":
 		confirm_invitee(doc, ticket_id=message_id)
@@ -73,6 +89,10 @@ def decline_invitee(doc):
 def get_invitation(message_id):
 	"""Return the invitee and template of the outgoing message the guest replied to."""
 	if not message_id:
+		frappe.log_error(
+			title="Missing message_id",
+			message="update_invitee_rsvp_status was called without a message_id",
+		)
 		return None
 	invitation = frappe.db.get_value(
 		"WhatsApp Message",
@@ -81,6 +101,7 @@ def get_invitation(message_id):
 		as_dict=True,
 	)
 	if not invitation or not invitation.occasion_invitee:
+		frappe.log_error(title="No invitee found", message=f"No invitee found for message_id={message_id}")
 		return None
 	return invitation
 
@@ -97,7 +118,7 @@ def resolve_reply_action(template, reply):
 			"action_type",
 		)
 		if action_type:
-			return action_type if action_type in RSVP_ACTIONS else None
+			return action_type
 	return REPLY_LABEL_ACTIONS.get(reply)
 
 
