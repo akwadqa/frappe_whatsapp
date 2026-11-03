@@ -157,6 +157,18 @@ def send_location(doc):
 
 
 def send_qr_card(doc):
+	file_url = create_qr_card(doc)
+	if file_url:
+		send_outgoing_message(doc, content_type="image", attach=file_url)
+
+
+def create_qr_card(doc):
+	"""Render the invitee's QR card and save it as a public File.
+
+	Returns the file URL, or None when rendering failed. generate_qr_card has
+	already written the Error Log in that case, so callers only decide whether
+	to carry on without the card.
+	"""
 	context = {
 		"title": "Personal access card",
 		"subtitle": "Please show code to enter",
@@ -170,11 +182,9 @@ def send_qr_card(doc):
 	try:
 		base64_card = generate_qr_card(QR_CARD_TEMPLATE, context)
 	except Exception:
-		# generate_qr_card has already written the Error Log; the RSVP itself is kept.
-		return
+		return None
 
-	file_url = _save_qr_card_file(base64_card, doc)
-	send_outgoing_message(doc, content_type="image", attach=file_url)
+	return _save_qr_card_file(base64_card, doc)
 
 
 def send_outgoing_message(doc, **fields):
