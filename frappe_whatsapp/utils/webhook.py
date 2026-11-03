@@ -320,9 +320,9 @@ def update_single_message_status(status_data):
 	id = status_data['id']
 	status = status_data['status']
 	conversation = status_data.get('conversation', {}).get('id')
-	name, current_status, occasion_invitee = frappe.db.get_value(
-		"WhatsApp Message", {"message_id": id}, ["name", "status", "occasion_invitee"]
-	) or (None, None, None)
+	name, current_status, occasion_invitee, message_type = frappe.db.get_value(
+		"WhatsApp Message", {"message_id": id}, ["name", "status", "occasion_invitee", "message_type"]
+	) or (None, None, None, None)
 
 	if not name or not is_newer_status(status, current_status):
 		return
@@ -344,7 +344,9 @@ def update_single_message_status(status_data):
 		update_modified=False
 	)
 
-	if occasion_invitee:
+	# Only the invitation (a template send) reflects on the invitee. The RSVP
+	# replies carry occasion_invitee too, and their delivery must not touch it.
+	if occasion_invitee and message_type == "Template":
 		sync_invitee_rsvp_status(occasion_invitee, status)
 
 def sync_invitee_rsvp_status(occasion_invitee, message_status):
