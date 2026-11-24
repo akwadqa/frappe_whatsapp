@@ -6,9 +6,6 @@ import frappe
 from frappe_whatsapp.utils.template_generator import generate_qr_card
 
 QR_CARD_TEMPLATE = "frappe_whatsapp/templates/QR_Code_template_Kroot.html"
-# WhatsApp Templates record (IMAGE header) that carries the QR card. A free-form
-# image is rejected outside the 24-hour customer service window; a template is not.
-QR_TICKET_TEMPLATE = "kroot_qr_invitation-en"
 
 # Used only when the invitation template's buttons carry no action_type.
 REPLY_LABEL_ACTIONS = {
@@ -126,9 +123,8 @@ def resolve_reply_action(template, reply):
 
 
 def send_reply_text(doc, kind):
-	language = frappe.db.get_value("Occasion", doc.occasion, "language")
-	suffix = "ar" if language == "Arabic" else "en"
-	text = (frappe.db.get_single_value("WhatsApp Settings", f"{kind}_reply_{suffix}") or "").strip()
+	fieldname = f"{kind}_reply_{get_language_suffix(doc)}"
+	text = (frappe.db.get_single_value("WhatsApp Settings", fieldname) or "").strip()
 	if text:
 		send_outgoing_message(doc, content_type="text", message=text)
 
@@ -160,6 +156,15 @@ def send_location(doc):
 
 
 def send_qr_card(doc):
+	"""Send the QR card as the image header of a template.
+
+	A free-form image is rejected outside the 24-hour customer service window;
+	a template is not.
+	"""
+	template = get_qr_card_template(doc)
+	if not template:
+		return
+
 	file_url = create_qr_card(doc)
 	if file_url:
 		send_outgoing_message(
@@ -167,9 +172,21 @@ def send_qr_card(doc):
 			content_type="image",
 			message_type="Template",
 			use_template=1,
-			template=QR_TICKET_TEMPLATE,
+			template=template,
 			attach=file_url,
 		)
+
+
+def get_qr_card_template(doc):
+	"""Return the QR card template for the occasion's language, from WhatsApp Settings."""
+	fieldname = f"qr_card_template_{get_language_suffix(doc)}"
+	template = frappe.db.get_single_value("WhatsApp Settings", fieldname)
+	if not template:
+		frappe.log_error(
+			title="QR card template not set",
+			message=f"WhatsApp Settings.{fieldname} is empty; no QR card sent to Occasion Invitee {doc.name}",
+		)
+	return template
 
 
 def create_qr_card(doc):
@@ -218,6 +235,11 @@ def send_outgoing_message(doc, **fields):
 		message.insert(ignore_permissions=True)
 	except Exception:
 		frappe.log_error(title="RSVP reply failed", message=frappe.get_traceback())
+
+
+def get_language_suffix(doc):
+	language = frappe.db.get_value("Occasion", doc.occasion, "language")
+	return "ar" if language == "Arabic" else "en"
 
 
 def _save_qr_card_file(base64_png, occasion_invitee_doc):
