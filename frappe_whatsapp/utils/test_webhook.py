@@ -8,6 +8,7 @@ import frappe
 from frappe_whatsapp.testing import IntegrationTestCase
 
 from frappe_whatsapp.utils.webhook import (
+    get_rsvp_reply_status,
     update_message_status,
     update_status,
     update_template_status,
@@ -480,3 +481,22 @@ class TestWebhookEndpoint(IntegrationTestCase):
         # Should have created a notification log
         logs = frappe.get_all("WhatsApp Notification Log", filters={"template": "Webhook"})
         self.assertTrue(len(logs) > 0)
+
+
+class TestRsvpReplyLabels(IntegrationTestCase):
+    """Quick-reply labels from Arabic and English templates map to the same RSVP action."""
+
+    def test_arabic_labels(self):
+        self.assertEqual(get_rsvp_reply_status("تأكيد"), "Confirmed")
+        self.assertEqual(get_rsvp_reply_status("اعتذار"), "Declined")
+        self.assertEqual(get_rsvp_reply_status("موقع المناسبة"), "Location")
+
+    def test_english_labels_any_case_and_spacing(self):
+        self.assertEqual(get_rsvp_reply_status("Confirm"), "Confirmed")
+        self.assertEqual(get_rsvp_reply_status(" confirm  attendance "), "Confirmed")
+        self.assertEqual(get_rsvp_reply_status("DECLINE"), "Declined")
+        self.assertEqual(get_rsvp_reply_status("Location"), "Location")
+
+    def test_unknown_label(self):
+        self.assertIsNone(get_rsvp_reply_status("Maybe"))
+        self.assertIsNone(get_rsvp_reply_status(None))

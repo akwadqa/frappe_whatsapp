@@ -347,6 +347,23 @@ def update_message_status(data):
 			occ_inv_doc.save(ignore_permissions=True)
 
 
+# Quick-reply button labels (Arabic and English templates) -> RSVP action.
+RSVP_REPLY_STATUS = {
+	"تأكيد": "Confirmed",
+	"اعتذار": "Declined",
+	"موقع المناسبة": "Location",
+	"confirm": "Confirmed",
+	"confirm attendance": "Confirmed",
+	"decline": "Declined",
+	"location": "Location",
+}
+
+
+def get_rsvp_reply_status(reply):
+	"""Return Confirmed / Declined / Location for a button label, or None. Case and spaces are ignored."""
+	return RSVP_REPLY_STATUS.get(" ".join((reply or "").split()).lower())
+
+
 def update_invitee_rsvp_status(message_id, reply):
 	"""Update RSVP status of an Occasion Invitee based on a WhatsApp template quick-reply."""
 
@@ -370,12 +387,7 @@ def update_invitee_rsvp_status(message_id, reply):
 			)
 			return
 
-		status_map = {
-			"تأكيد": "Confirmed",
-			"اعتذار": "Declined",
-			"موقع المناسبة": "Location"
-		}
-		new_status = status_map.get(reply)
+		new_status = get_rsvp_reply_status(reply)
 		if not new_status:
 			frappe.log_error(
 				title="Unrecognized reply",
