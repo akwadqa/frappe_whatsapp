@@ -6,6 +6,9 @@ import frappe
 from frappe_whatsapp.utils.template_generator import generate_qr_card
 
 QR_CARD_TEMPLATE = "frappe_whatsapp/templates/QR_Code_template_Kroot.html"
+# WhatsApp Templates record (IMAGE header) that carries the QR card. A free-form
+# image is rejected outside the 24-hour customer service window; a template is not.
+QR_TICKET_TEMPLATE = "kroot_qr_invitation-en"
 
 # Used only when the invitation template's buttons carry no action_type.
 REPLY_LABEL_ACTIONS = {
@@ -159,7 +162,14 @@ def send_location(doc):
 def send_qr_card(doc):
 	file_url = create_qr_card(doc)
 	if file_url:
-		send_outgoing_message(doc, content_type="image", attach=file_url)
+		send_outgoing_message(
+			doc,
+			content_type="image",
+			message_type="Template",
+			use_template=1,
+			template=QR_TICKET_TEMPLATE,
+			attach=file_url,
+		)
 
 
 def create_qr_card(doc):

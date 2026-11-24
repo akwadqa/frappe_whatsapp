@@ -2,12 +2,13 @@
 # See license.txt
 
 import base64
+import json
 from unittest.mock import MagicMock, patch
 
 import frappe
 from frappe_whatsapp.testing import IntegrationTestCase
 
-from frappe_whatsapp.utils.occasion_rsvp import update_invitee_rsvp_status
+from frappe_whatsapp.utils.occasion_rsvp import QR_TICKET_TEMPLATE, update_invitee_rsvp_status
 from frappe_whatsapp.utils.webhook import update_message_status
 
 ACCOUNT = "Test WA RSVP Account"
@@ -48,6 +49,7 @@ class TestOccasionRsvp(IntegrationTestCase):
 		cls._make_account()
 		cls._make_template(INVITE_TEMPLATE, BUTTONS)
 		cls._make_template(PLAIN_TEMPLATE, [])
+		cls._make_template(QR_TICKET_TEMPLATE, [], header_type="IMAGE")
 		frappe.get_doc({"doctype": "Occasion Type", "occasion_type": "RSVP Test Type"}).insert(ignore_permissions=True)
 		frappe.db.set_single_value("WhatsApp Settings", {
 			"confirm_reply_en": "See you there",
@@ -77,7 +79,7 @@ class TestOccasionRsvp(IntegrationTestCase):
 		frappe.db.set_value("WhatsApp Account", ACCOUNT, {"is_default_outgoing": 1, "is_default_incoming": 1})
 
 	@classmethod
-	def _make_template(cls, name, buttons):
+	def _make_template(cls, name, buttons, header_type=None):
 		"""db_insert skips after_insert, which would call Meta."""
 		template_name = name.rsplit("-", 1)[0]
 		frappe.get_doc({
@@ -92,6 +94,7 @@ class TestOccasionRsvp(IntegrationTestCase):
 			"whatsapp_account": ACCOUNT,
 			"status": "APPROVED",
 			"id": f"{template_name}_id",
+			"header_type": header_type,
 		}).db_insert()
 		for idx, (label, action_type) in enumerate(buttons, start=1):
 			frappe.get_doc({
@@ -178,6 +181,26 @@ class TestOccasionRsvp(IntegrationTestCase):
 		self.make_invitation(invitee, message_id)
 		return invitee
 
+	def qr_cards(self, invitee):
+		return frappe.get_all(
+			"WhatsApp Message",
+			filters={"occasion_invitee": invitee.name, "type": "Outgoing", "template": QR_TICKET_TEMPLATE},
+			fields=["message_type", "attach"],
+		)
+
+	def assert_qr_card_sent_as_template(self, invitee):
+		"""A free-form image fails outside the 24-hour window, so the card must go as a template."""
+		cards = self.qr_cards(invitee)
+		self.assertEqual(len(cards), 1)
+		self.assertEqual(cards[0].message_type, "Template")
+		self.assertEqual(cards[0].attach, f"/files/qr-ticket-{invitee.name}.png")
+		self.assertEqual(self.replies(invitee, "image"), [])
+
+		payload = json.loads(self.post_mock.call_args.kwargs["data"])
+		self.assertEqual(payload["type"], "template")
+		header = next(c for c in payload["template"]["components"] if c["type"] == "header")
+		self.assertTrue(header["parameters"][0]["image"]["link"].endswith(cards[0].attach))
+
 	def error_count(self, title):
 		return frappe.db.count("Error Log", {"method": title})
 
@@ -200,9 +223,7 @@ class TestOccasionRsvp(IntegrationTestCase):
 		self.assertTrue(invitee.qr_raw_data)
 		self.assertEqual(invitee.replied, 1)
 		self.card_mock.assert_called_once()
-		cards = self.replies(invitee, "image")
-		self.assertEqual(len(cards), 1)
-		self.assertEqual(cards[0].attach, f"/files/qr-ticket-{invitee.name}.png")
+		self.assert_qr_card_sent_as_template(invitee)
 		self.assertEqual(self.replies(invitee, "text"), [])
 
 	def test_confirm_with_qr_disabled_sends_text_only(self):
@@ -216,7 +237,7 @@ class TestOccasionRsvp(IntegrationTestCase):
 		self.card_mock.assert_not_called()
 		texts = self.replies(invitee, "text")
 		self.assertEqual([t.message for t in texts], ["See you there"])
-		self.assertEqual(self.replies(invitee, "image"), [])
+		self.assertEqual(self.qr_cards(invitee), [])
 
 	def test_confirm_keeps_existing_ticket(self):
 		invitee = self.invite("wamid.rsvp_test_keep")
@@ -434,4 +455,4 @@ class TestOccasionRsvp(IntegrationTestCase):
 		self.assertEqual(invitee.ticket_id, OUTGOING_ID)
 		self.assertEqual(invitee.replied, 0)
 		self.card_mock.assert_called_once()
-		self.assertEqual(len(self.replies(invitee, "image")), 1)
+		self.assert_qr_card_sent_as_template(invitee)
