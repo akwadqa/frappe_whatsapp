@@ -450,10 +450,13 @@ def update_invitee_rsvp_status(message_id, reply):
 				doc.save(ignore_permissions=True)
 				frappe.db.commit()
 		elif new_status == "Location":
-			map_link = frappe.db.get_value("Occasion", doc.occasion, "map_link")
-			location_name = frappe.db.get_value("Occasion", doc.occasion, "location_name")
-			location_address = frappe.db.get_value("Occasion", doc.occasion, "location_address")
-			info = extract_google_maps_info(map_link)
+			occasion = frappe.db.get_value(
+				"Occasion", doc.occasion,
+				["latitude", "longitude", "map_link", "location_name", "location_address"], as_dict=True,
+			)
+			location_name = occasion.location_name
+			location_address = occasion.location_address
+			info = get_location_coordinates(occasion.latitude, occasion.longitude, occasion.map_link)
 			if info.get("latitude") and info.get("longitude"):
 				message_data = {
 					"doctype": "WhatsApp Message",
@@ -514,6 +517,21 @@ def normalize_png(b64_png: str) -> bytes:
 	buf = io.BytesIO()
 	im.save(buf, format="PNG")   # Pillow will default to 8-bit RGB/ RGBA
 	return buf.getvalue()
+
+
+def get_location_coordinates(latitude, longitude, map_link=None):
+	"""Coordinates to send for the event location.
+
+	The event's own latitude / longitude come first; the map link is only read when they are
+	missing, because short share links (maps.app.goo.gl/...) carry no coordinates.
+	"""
+	try:
+		lat, lng = float(latitude), float(longitude)
+		if -90 <= lat <= 90 and -180 <= lng <= 180:
+			return {"latitude": lat, "longitude": lng}
+	except (TypeError, ValueError):
+		pass
+	return extract_google_maps_info(map_link)
 
 
 def extract_google_maps_info(url):
