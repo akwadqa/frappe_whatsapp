@@ -13,9 +13,11 @@
   "rsvp_section",
   "confirm_reply_en",
   "decline_reply_en",
+  "qr_card_template_en",
   "column_break_skjo",
   "confirm_reply_ar",
-  "decline_reply_ar"
+  "decline_reply_ar",
+  "qr_card_template_ar"
  ],
  "fields": [
   {
@@ -70,6 +72,20 @@
    "label": "Decline Reply (Arabic)"
   },
   {
+   "description": "Approved template with an image header that carries the guest's QR card (English occasions).",
+   "fieldname": "qr_card_template_en",
+   "fieldtype": "Link",
+   "label": "QR Card Template (English)",
+   "options": "WhatsApp Templates"
+  },
+  {
+   "description": "Approved template with an image header that carries the guest's QR card (Arabic occasions).",
+   "fieldname": "qr_card_template_ar",
+   "fieldtype": "Link",
+   "label": "QR Card Template (Arabic)",
+   "options": "WhatsApp Templates"
+  },
+  {
    "fieldname": "whatsapp_messages_limit",
    "fieldtype": "Int",
    "label": "Whatsapp Messages Limit"
@@ -79,7 +95,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-30 11:50:54.007208",
+ "modified": "2026-11-24 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Frappe Whatsapp",
  "name": "WhatsApp Settings",

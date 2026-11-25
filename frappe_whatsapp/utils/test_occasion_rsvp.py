@@ -2,6 +2,7 @@
 # See license.txt
 
 import base64
+import json
 from unittest.mock import MagicMock, patch
 
 import frappe
@@ -13,6 +14,7 @@ from frappe_whatsapp.utils.webhook import update_message_status
 ACCOUNT = "Test WA RSVP Account"
 INVITE_TEMPLATE = "rsvp_test_invite-en"
 PLAIN_TEMPLATE = "rsvp_test_plain-en"
+QR_CARD_TEMPLATES = {"en": "rsvp_test_qr_card_en-en", "ar": "rsvp_test_qr_card_ar-ar"}
 OUTGOING_ID = "wamid.rsvp_test_out"
 ONE_PIXEL_PNG = (
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
@@ -48,12 +50,16 @@ class TestOccasionRsvp(IntegrationTestCase):
 		cls._make_account()
 		cls._make_template(INVITE_TEMPLATE, BUTTONS)
 		cls._make_template(PLAIN_TEMPLATE, [])
+		for language_code, name in QR_CARD_TEMPLATES.items():
+			cls._make_template(name, [], header_type="IMAGE", language_code=language_code)
 		frappe.get_doc({"doctype": "Occasion Type", "occasion_type": "RSVP Test Type"}).insert(ignore_permissions=True)
 		frappe.db.set_single_value("WhatsApp Settings", {
 			"confirm_reply_en": "See you there",
 			"decline_reply_en": "Sorry to miss you",
 			"confirm_reply_ar": "نراك هناك",
 			"decline_reply_ar": "نأسف لغيابك",
+			"qr_card_template_en": QR_CARD_TEMPLATES["en"],
+			"qr_card_template_ar": QR_CARD_TEMPLATES["ar"],
 		})
 
 	@classmethod
@@ -77,7 +83,7 @@ class TestOccasionRsvp(IntegrationTestCase):
 		frappe.db.set_value("WhatsApp Account", ACCOUNT, {"is_default_outgoing": 1, "is_default_incoming": 1})
 
 	@classmethod
-	def _make_template(cls, name, buttons):
+	def _make_template(cls, name, buttons, header_type=None, language_code="en"):
 		"""db_insert skips after_insert, which would call Meta."""
 		template_name = name.rsplit("-", 1)[0]
 		frappe.get_doc({
@@ -87,11 +93,12 @@ class TestOccasionRsvp(IntegrationTestCase):
 			"actual_name": template_name,
 			"template": "You are invited",
 			"category": "UTILITY",
-			"language": frappe.db.get_value("Language", {"language_code": "en"}) or "en",
-			"language_code": "en",
+			"language": frappe.db.get_value("Language", {"language_code": language_code}) or language_code,
+			"language_code": language_code,
 			"whatsapp_account": ACCOUNT,
 			"status": "APPROVED",
 			"id": f"{template_name}_id",
+			"header_type": header_type,
 		}).db_insert()
 		for idx, (label, action_type) in enumerate(buttons, start=1):
 			frappe.get_doc({
@@ -178,6 +185,30 @@ class TestOccasionRsvp(IntegrationTestCase):
 		self.make_invitation(invitee, message_id)
 		return invitee
 
+	def qr_cards(self, invitee):
+		return frappe.get_all(
+			"WhatsApp Message",
+			filters={
+				"occasion_invitee": invitee.name,
+				"type": "Outgoing",
+				"template": ["in", list(QR_CARD_TEMPLATES.values())],
+			},
+			fields=["message_type", "attach", "template"],
+		)
+
+	def assert_qr_card_sent_as_template(self, invitee):
+		"""A free-form image fails outside the 24-hour window, so the card must go as a template."""
+		cards = self.qr_cards(invitee)
+		self.assertEqual(len(cards), 1)
+		self.assertEqual(cards[0].message_type, "Template")
+		self.assertEqual(cards[0].attach, f"/files/qr-ticket-{invitee.name}.png")
+		self.assertEqual(self.replies(invitee, "image"), [])
+
+		payload = json.loads(self.post_mock.call_args.kwargs["data"])
+		self.assertEqual(payload["type"], "template")
+		header = next(c for c in payload["template"]["components"] if c["type"] == "header")
+		self.assertTrue(header["parameters"][0]["image"]["link"].endswith(cards[0].attach))
+
 	def error_count(self, title):
 		return frappe.db.count("Error Log", {"method": title})
 
@@ -200,10 +231,32 @@ class TestOccasionRsvp(IntegrationTestCase):
 		self.assertTrue(invitee.qr_raw_data)
 		self.assertEqual(invitee.replied, 1)
 		self.card_mock.assert_called_once()
-		cards = self.replies(invitee, "image")
-		self.assertEqual(len(cards), 1)
-		self.assertEqual(cards[0].attach, f"/files/qr-ticket-{invitee.name}.png")
+		self.assert_qr_card_sent_as_template(invitee)
 		self.assertEqual(self.replies(invitee, "text"), [])
+
+	def test_qr_card_uses_template_of_occasion_language(self):
+		invitee = self.invite("wamid.rsvp_test_qr_ar", language="Arabic")
+
+		update_invitee_rsvp_status("wamid.rsvp_test_qr_ar", "نعم سأحضر")
+
+		self.assert_qr_card_sent_as_template(invitee)
+		self.assertEqual(self.qr_cards(invitee)[0].template, QR_CARD_TEMPLATES["ar"])
+
+	def test_missing_qr_card_template_is_logged_and_confirm_still_applies(self):
+		frappe.db.set_single_value("WhatsApp Settings", "qr_card_template_ar", None)
+		self.addCleanup(
+			frappe.db.set_single_value, "WhatsApp Settings", "qr_card_template_ar", QR_CARD_TEMPLATES["ar"]
+		)
+		invitee = self.invite("wamid.rsvp_test_qr_unset", language="Arabic")
+		errors_before = self.error_count("QR card template not set")
+
+		update_invitee_rsvp_status("wamid.rsvp_test_qr_unset", "نعم سأحضر")
+
+		invitee.reload()
+		self.assertEqual(invitee.rsvp_status, "Confirmed")
+		self.assertEqual(self.qr_cards(invitee), [])
+		self.card_mock.assert_not_called()
+		self.assertEqual(self.error_count("QR card template not set"), errors_before + 1)
 
 	def test_confirm_with_qr_disabled_sends_text_only(self):
 		invitee = self.invite("wamid.rsvp_test_disabled", qr_delivery="Disabled")
@@ -216,7 +269,7 @@ class TestOccasionRsvp(IntegrationTestCase):
 		self.card_mock.assert_not_called()
 		texts = self.replies(invitee, "text")
 		self.assertEqual([t.message for t in texts], ["See you there"])
-		self.assertEqual(self.replies(invitee, "image"), [])
+		self.assertEqual(self.qr_cards(invitee), [])
 
 	def test_confirm_keeps_existing_ticket(self):
 		invitee = self.invite("wamid.rsvp_test_keep")
@@ -434,4 +487,4 @@ class TestOccasionRsvp(IntegrationTestCase):
 		self.assertEqual(invitee.ticket_id, OUTGOING_ID)
 		self.assertEqual(invitee.replied, 0)
 		self.card_mock.assert_called_once()
-		self.assertEqual(len(self.replies(invitee, "image")), 1)
+		self.assert_qr_card_sent_as_template(invitee)
