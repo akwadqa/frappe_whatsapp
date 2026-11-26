@@ -350,8 +350,10 @@ def update_message_status(data):
 # Quick-reply button labels (Arabic and English templates) -> RSVP action.
 RSVP_REPLY_STATUS = {
 	"تأكيد": "Confirmed",
+	"تأكيد الحضور": "Confirmed",
 	"اعتذار": "Declined",
 	"موقع المناسبة": "Location",
+	"الموقع": "Location",
 	"confirm": "Confirmed",
 	"confirm attendance": "Confirmed",
 	"decline": "Declined",

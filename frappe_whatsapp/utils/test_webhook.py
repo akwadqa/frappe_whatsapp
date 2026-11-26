@@ -491,6 +491,8 @@ class TestRsvpReplyLabels(IntegrationTestCase):
         self.assertEqual(get_rsvp_reply_status("تأكيد"), "Confirmed")
         self.assertEqual(get_rsvp_reply_status("اعتذار"), "Declined")
         self.assertEqual(get_rsvp_reply_status("موقع المناسبة"), "Location")
+        self.assertEqual(get_rsvp_reply_status("تأكيد الحضور"), "Confirmed")
+        self.assertEqual(get_rsvp_reply_status("الموقع"), "Location")
 
     def test_english_labels_any_case_and_spacing(self):
         self.assertEqual(get_rsvp_reply_status("Confirm"), "Confirmed")
