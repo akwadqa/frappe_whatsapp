@@ -258,7 +258,19 @@ class WhatsAppMessage(Document):
         })
 
         if template.header_type:
-            if self.attach:
+            if template.header_type == 'IMAGE' and self.media_id:
+                # An image already uploaded to WhatsApp (e.g. the guest's QR on the confirmation)
+                # replaces the template's sample image.
+                data['template']['components'].append({
+                    "type": "header",
+                    "parameters": [{
+                        "type": "image",
+                        "image": {
+                            "id": self.media_id
+                        }
+                    }]
+                })
+            elif self.attach:
                 if self.attach.startswith("http"):
                     url = f'{self.attach}'
                 else:
