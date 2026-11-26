@@ -8,6 +8,8 @@ import frappe
 from frappe_whatsapp.testing import IntegrationTestCase
 
 from frappe_whatsapp.utils.webhook import (
+    get_location_coordinates,
+    get_rsvp_reply_status,
     update_message_status,
     update_status,
     update_template_status,
@@ -480,3 +482,45 @@ class TestWebhookEndpoint(IntegrationTestCase):
         # Should have created a notification log
         logs = frappe.get_all("WhatsApp Notification Log", filters={"template": "Webhook"})
         self.assertTrue(len(logs) > 0)
+
+
+class TestRsvpReplyLabels(IntegrationTestCase):
+    """Quick-reply labels from Arabic and English templates map to the same RSVP action."""
+
+    def test_arabic_labels(self):
+        self.assertEqual(get_rsvp_reply_status("تأكيد"), "Confirmed")
+        self.assertEqual(get_rsvp_reply_status("اعتذار"), "Declined")
+        self.assertEqual(get_rsvp_reply_status("موقع المناسبة"), "Location")
+        self.assertEqual(get_rsvp_reply_status("تأكيد الحضور"), "Confirmed")
+        self.assertEqual(get_rsvp_reply_status("الموقع"), "Location")
+
+    def test_english_labels_any_case_and_spacing(self):
+        self.assertEqual(get_rsvp_reply_status("Confirm"), "Confirmed")
+        self.assertEqual(get_rsvp_reply_status(" confirm  attendance "), "Confirmed")
+        self.assertEqual(get_rsvp_reply_status("DECLINE"), "Declined")
+        self.assertEqual(get_rsvp_reply_status("Location"), "Location")
+
+    def test_unknown_label(self):
+        self.assertIsNone(get_rsvp_reply_status("Maybe"))
+        self.assertIsNone(get_rsvp_reply_status(None))
+
+
+class TestLocationCoordinates(IntegrationTestCase):
+    """The Location reply uses the event's coordinates; the map link is only a fallback."""
+
+    SHORT_LINK = "https://maps.app.goo.gl/nY7TNLuDhWtwJpzn6"
+
+    def test_event_fields_win_over_short_link(self):
+        self.assertEqual(
+            get_location_coordinates("25.2854473", "51.53103979999999", self.SHORT_LINK),
+            {"latitude": 25.2854473, "longitude": 51.53103979999999},
+        )
+
+    def test_falls_back_to_map_link(self):
+        self.assertEqual(
+            get_location_coordinates(None, "", "https://www.google.com/maps/place/x/@25.36,51.52,17z"),
+            {"latitude": 25.36, "longitude": 51.52},
+        )
+
+    def test_invalid_fields_and_short_link_give_nothing(self):
+        self.assertEqual(get_location_coordinates("abc", "999", self.SHORT_LINK), {"latitude": None, "longitude": None})

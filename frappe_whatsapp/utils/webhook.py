@@ -347,6 +347,25 @@ def update_message_status(data):
 			occ_inv_doc.save(ignore_permissions=True)
 
 
+# Quick-reply button labels (Arabic and English templates) -> RSVP action.
+RSVP_REPLY_STATUS = {
+	"تأكيد": "Confirmed",
+	"تأكيد الحضور": "Confirmed",
+	"اعتذار": "Declined",
+	"موقع المناسبة": "Location",
+	"الموقع": "Location",
+	"confirm": "Confirmed",
+	"confirm attendance": "Confirmed",
+	"decline": "Declined",
+	"location": "Location",
+}
+
+
+def get_rsvp_reply_status(reply):
+	"""Return Confirmed / Declined / Location for a button label, or None. Case and spaces are ignored."""
+	return RSVP_REPLY_STATUS.get(" ".join((reply or "").split()).lower())
+
+
 def update_invitee_rsvp_status(message_id, reply):
 	"""Update RSVP status of an Occasion Invitee based on a WhatsApp template quick-reply."""
 
@@ -370,12 +389,7 @@ def update_invitee_rsvp_status(message_id, reply):
 			)
 			return
 
-		status_map = {
-			"تأكيد": "Confirmed",
-			"اعتذار": "Declined",
-			"موقع المناسبة": "Location"
-		}
-		new_status = status_map.get(reply)
+		new_status = get_rsvp_reply_status(reply)
 		if not new_status:
 			frappe.log_error(
 				title="Unrecognized reply",
@@ -438,10 +452,13 @@ def update_invitee_rsvp_status(message_id, reply):
 				doc.save(ignore_permissions=True)
 				frappe.db.commit()
 		elif new_status == "Location":
-			map_link = frappe.db.get_value("Occasion", doc.occasion, "map_link")
-			location_name = frappe.db.get_value("Occasion", doc.occasion, "location_name")
-			location_address = frappe.db.get_value("Occasion", doc.occasion, "location_address")
-			info = extract_google_maps_info(map_link)
+			occasion = frappe.db.get_value(
+				"Occasion", doc.occasion,
+				["latitude", "longitude", "map_link", "location_name", "location_address"], as_dict=True,
+			)
+			location_name = occasion.location_name
+			location_address = occasion.location_address
+			info = get_location_coordinates(occasion.latitude, occasion.longitude, occasion.map_link)
 			if info.get("latitude") and info.get("longitude"):
 				message_data = {
 					"doctype": "WhatsApp Message",
@@ -502,6 +519,21 @@ def normalize_png(b64_png: str) -> bytes:
 	buf = io.BytesIO()
 	im.save(buf, format="PNG")   # Pillow will default to 8-bit RGB/ RGBA
 	return buf.getvalue()
+
+
+def get_location_coordinates(latitude, longitude, map_link=None):
+	"""Coordinates to send for the event location.
+
+	The event's own latitude / longitude come first; the map link is only read when they are
+	missing, because short share links (maps.app.goo.gl/...) carry no coordinates.
+	"""
+	try:
+		lat, lng = float(latitude), float(longitude)
+		if -90 <= lat <= 90 and -180 <= lng <= 180:
+			return {"latitude": lat, "longitude": lng}
+	except (TypeError, ValueError):
+		pass
+	return extract_google_maps_info(map_link)
 
 
 def extract_google_maps_info(url):

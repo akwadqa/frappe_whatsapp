@@ -244,17 +244,8 @@ class WhatsAppMessage(Document):
                 for param in params:
                     parameters.append({"type": "text", "text": param})
                     template_parameters.append(param)
-            elif self.flags.custom_ref_doc:
-                custom_values = self.flags.custom_ref_doc
-                for field_name in field_names:
-                    value = custom_values.get(field_name.strip())
-                    parameters.append({"type": "text", "text": value})
-                    template_parameters.append(value)                    
-
             else:
-                ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
-                for field_name in field_names:
-                    value = ref_doc.get_formatted(field_name.strip())
+                for value in self.get_template_field_values(template, field_names):
                     parameters.append({"type": "text", "text": value})
                     template_parameters.append(value)
 
@@ -267,7 +258,19 @@ class WhatsAppMessage(Document):
         })
 
         if template.header_type:
-            if self.attach:
+            if template.header_type == 'IMAGE' and self.media_id:
+                # An image already uploaded to WhatsApp (e.g. the guest's QR on the confirmation)
+                # replaces the template's sample image.
+                data['template']['components'].append({
+                    "type": "header",
+                    "parameters": [{
+                        "type": "image",
+                        "image": {
+                            "id": self.media_id
+                        }
+                    }]
+                })
+            elif self.attach:
                 if self.attach.startswith("http"):
                     url = f'{self.attach}'
                 else:
@@ -388,6 +391,50 @@ class WhatsAppMessage(Document):
                 data['template']['components'].extend(button_parameters)
 
         self.notify(data)
+
+    def get_template_field_values(self, template, field_names):
+        """Values for the template's {{n}} variables, in order.
+
+        Each field is read from the recipient's custom data first (bulk recipient_data), then from the
+        template's source document. When the message is linked to another doctype than the template's
+        "For DocType" (e.g. an Occasion Invitee for an Occasion template), the linked record is used:
+        Occasion Invitee.occasion -> Occasion. An empty value fails here with a clear message instead
+        of Meta's "(#131008) Required parameter is missing".
+        """
+        custom_values = self.flags.custom_ref_doc or {}
+        source_doc = self.get_template_source_doc(template)
+        values = []
+        for position, field_name in enumerate(field_names, start=1):
+            field_name = field_name.strip()
+            value = custom_values.get(field_name)
+            if value in (None, "") and source_doc is not None:
+                value = source_doc.get_formatted(field_name)
+            if value in (None, ""):
+                frappe.throw(
+                    _("Template {0}: no value for variable {{{{{1}}}}} ({2}) in {3} {4}").format(
+                        template.name,
+                        position,
+                        field_name,
+                        source_doc.doctype if source_doc is not None else self.reference_doctype,
+                        source_doc.name if source_doc is not None else self.reference_name,
+                    ),
+                    title=_("Missing template variable"),
+                )
+            values.append(str(value))
+        return values
+
+    def get_template_source_doc(self, template):
+        """The document the template's variables come from, or None when the message has no reference."""
+        if not (self.reference_doctype and self.reference_name):
+            return None
+        ref_doc = frappe.get_doc(self.reference_doctype, self.reference_name)
+        target = template.for_doctype
+        if not target or target == ref_doc.doctype:
+            return ref_doc
+        for link in ref_doc.meta.get_link_fields():
+            if link.options == target and ref_doc.get(link.fieldname):
+                return frappe.get_doc(target, ref_doc.get(link.fieldname))
+        return ref_doc
 
     def notify(self, data):
         """Notify."""
